@@ -52,10 +52,8 @@ public:
 	FaustPipeline(FaustDevice& device);
 	~FaustPipeline();
 
-	void bind(VkCommandBuffer commandBuffer) {
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-	}
 	void createGraphicsPipeline(VkRenderPass renderPass, VkPipelineLayout pipelineLayout);
+	VkPipeline getPipeline() const { return graphicsPipeline; }
 
 private:
 	VkShaderModule createShaderModule(const std::vector<char>& code);
