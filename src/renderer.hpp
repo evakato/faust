@@ -1,6 +1,6 @@
-#include <algorithm>
-
 #pragma once
+
+#include <algorithm>
 
 #include "device.hpp"
 #include "gui.hpp"
