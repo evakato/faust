@@ -3,8 +3,13 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -15,8 +20,10 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <unordered_map>
 
 #include "buffer.hpp"
+#include "image.hpp"
 #include "window.hpp"
 #include "pipeline.hpp"
 #include "device.hpp"
@@ -26,6 +33,21 @@
 const uint32_t WIDTH = 1600;
 const uint32_t HEIGHT = 900;
 
+const std::string MODEL_PATH = "assets/models/viking_room.obj";
+const std::string TEXTURE_PATH = "assets/textures/viking_room.png";
+
+std::vector<Vertex> vertices;
+std::vector<uint32_t> indices;
+
+namespace std {
+	template<> struct hash<Vertex> {
+		size_t operator()(Vertex const& vertex) const {
+			return ((hash<glm::vec3>()(vertex.pos) ^
+				(hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+				(hash<glm::vec2>()(vertex.texCoord) << 1);
+		}
+	};
+}
 
 struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
@@ -47,9 +69,9 @@ private:
 	FaustPipeline pipeline{ device2 };
 	FaustRenderer renderer{ device2, window };
 
-	Texture texture{ device2 };
-	Buffer vertBuffer{ device2, sizeof(vertices[0]) * vertices.size(), (void*)vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT };
-	Buffer indBuffer{ device2, sizeof(indices[0]) * indices.size(), (void*)indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT };
+	Texture texture{ device2, TEXTURE_PATH };
+	Buffer vertexBuffer{ device2 };
+	Buffer indexBuffer{ device2 };
 
 	VkPipelineLayout pipelineLayout;
 	VkDescriptorSetLayout descriptorSetLayout;
@@ -63,6 +85,11 @@ private:
 	uint32_t currentFrame = 0;
 
 	void initVulkan() {
+
+		loadModel();
+		vertexBuffer.setupBuffer(sizeof(vertices[0]) * vertices.size(), (void*)vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+		indexBuffer.setupBuffer(sizeof(indices[0]) * indices.size(), (void*)indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+
 		createDescriptorSetLayout();
 		createPipelineLayout();
 
@@ -85,8 +112,8 @@ private:
 			params.currentFrame = currentFrame;
 			params.bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 			params.pipeline = pipeline.getPipeline();
-			params.vertexBuffer = vertBuffer.getBuffer();
-			params.indexBuffer = indBuffer.getBuffer();
+			params.vertexBuffer = vertexBuffer.getBuffer();
+			params.indexBuffer = indexBuffer.getBuffer();
 			params.pipelineLayout = pipelineLayout;
 			params.descriptorSets = descriptorSets;
 			params.indexCount = indices.size();
@@ -94,39 +121,6 @@ private:
 		}
 
 		vkDeviceWaitIdle(device2.getDevice());
-	}
-
-	VkCommandBuffer beginSingleTimeCommands() {
-		VkCommandBufferAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandPool = device2.getCommandPool();
-		allocInfo.commandBufferCount = 1;
-
-		VkCommandBuffer commandBuffer;
-		vkAllocateCommandBuffers(device2.getDevice(), &allocInfo, &commandBuffer);
-
-		VkCommandBufferBeginInfo beginInfo{};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-		vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-		return commandBuffer;
-	}
-
-	void endSingleTimeCommands(VkCommandBuffer commandBuffer) {
-		vkEndCommandBuffer(commandBuffer);
-
-		VkSubmitInfo submitInfo{};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &commandBuffer;
-
-		vkQueueSubmit(device2.getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-		vkQueueWaitIdle(device2.getGraphicsQueue());
-
-		vkFreeCommandBuffers(device2.getDevice(), device2.getCommandPool(), 1, &commandBuffer);
 	}
 
 	void cleanup() {
@@ -139,6 +133,44 @@ private:
 
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+	}
+
+	void loadModel() {
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warn, err;
+
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
+			throw std::runtime_error(warn + err);
+		}
+
+		std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+		for (const auto& shape : shapes) {
+			for (const auto& index : shape.mesh.indices) {
+				Vertex vertex{};
+
+				vertex.pos = {
+					attrib.vertices[3 * index.vertex_index + 0],
+					attrib.vertices[3 * index.vertex_index + 1],
+					attrib.vertices[3 * index.vertex_index + 2]
+				};
+
+				vertex.texCoord = {
+					attrib.texcoords[2 * index.texcoord_index + 0],
+					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+				};
+
+				vertex.color = { 1.0f, 1.0f, 1.0f };
+
+				if (uniqueVertices.count(vertex) == 0) {
+					uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+					vertices.push_back(vertex);
+				}
+				indices.push_back(uniqueVertices[vertex]);
+			}
+		}
 	}
 
 	void createPipelineLayout() {

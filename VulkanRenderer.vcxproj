@@ -149,6 +149,7 @@
     <ClCompile Include="src\buffer.cpp" />
     <ClCompile Include="src\device.cpp" />
     <ClCompile Include="src\gui.cpp" />
+    <ClCompile Include="src\image.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pipeline.cpp" />
     <ClCompile Include="src\renderer.cpp" />
@@ -166,6 +167,7 @@
     <ClInclude Include="src\buffer.hpp" />
     <ClInclude Include="src\device.hpp" />
     <ClInclude Include="src\gui.hpp" />
+    <ClInclude Include="src\image.hpp" />
     <ClInclude Include="src\pipeline.hpp" />
     <ClInclude Include="src\renderer.hpp" />
     <ClInclude Include="src\texture.hpp" />

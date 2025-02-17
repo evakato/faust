@@ -3,18 +3,14 @@
 
 #include "texture.hpp"
 
-Texture::Texture(FaustDevice& device) : device{ device } {
-	createTextureImage();
-	createTextureImageView();
+Texture::Texture(FaustDevice& device, const std::string& imagePath) : Image(device) {
+	createTextureImage(imagePath);
+	createImageView(VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 	createTextureSampler();
 }
 
 Texture::~Texture() {
 	vkDestroySampler(device.getDevice(), textureSampler, nullptr);
-	vkDestroyImageView(device.getDevice(), textureImageView, nullptr);
-
-	vkDestroyImage(device.getDevice(), textureImage, nullptr);
-	vkFreeMemory(device.getDevice(), textureImageMemory, nullptr);
 }
 
 void Texture::createTextureSampler() {
@@ -44,9 +40,9 @@ void Texture::createTextureSampler() {
 	}
 }
 
-void Texture::createTextureImage() {
+void Texture::createTextureImage(const std::string& imagePath) {
 	int texWidth, texHeight, texChannels;
-	stbi_uc* pixels = stbi_load("assets/textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+	stbi_uc* pixels = stbi_load(imagePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 	VkDeviceSize imageSize = texWidth * texHeight * 4;
 
 	if (!pixels) {
@@ -64,68 +60,16 @@ void Texture::createTextureImage() {
 
 	stbi_image_free(pixels);
 
-	createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+	createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+	transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	copyBufferToImage(stagingBuffer, image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 
 	// transition to prepare for shader access
-	transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	vkDestroyBuffer(device.getDevice(), stagingBuffer, nullptr);
 	vkFreeMemory(device.getDevice(), stagingBufferMemory, nullptr);
-}
-
-void Texture::createTextureImageView() {
-	// maybe combine this with renderer creatImageViews() function
-	VkImageViewCreateInfo viewInfo{};
-	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	viewInfo.image = textureImage;
-	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	viewInfo.subresourceRange.baseMipLevel = 0;
-	viewInfo.subresourceRange.levelCount = 1;
-	viewInfo.subresourceRange.baseArrayLayer = 0;
-	viewInfo.subresourceRange.layerCount = 1;
-
-	if (vkCreateImageView(device.getDevice(), &viewInfo, nullptr, &textureImageView) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture image view!");
-	}
-}
-
-void Texture::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
-	VkImageCreateInfo imageInfo{};
-	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.extent.width = width;
-	imageInfo.extent.height = height;
-	imageInfo.extent.depth = 1;
-	imageInfo.mipLevels = 1;
-	imageInfo.arrayLayers = 1;
-	imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL; // optimal access order
-	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // not usable by gpu and texels not preserved during first transition
-	imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT; // usage sampled bit = enable access to the image from the shader
-	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageInfo.flags = 0; // Optional
-	if (vkCreateImage(device.getDevice(), &imageInfo, nullptr, &textureImage) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create image!");
-	}
-
-	// allocate memory for an image
-	VkMemoryRequirements memRequirements;
-	vkGetImageMemoryRequirements(device.getDevice(), textureImage, &memRequirements); // image
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = FaustDevice::findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device.getPhysicalDevice());
-
-	if (vkAllocateMemory(device.getDevice(), &allocInfo, nullptr, &textureImageMemory) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate image memory!");
-	}
-	vkBindImageMemory(device.getDevice(), textureImage, textureImageMemory, 0); // image
 }
 
 void Texture::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {

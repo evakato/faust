@@ -1,5 +1,7 @@
 #include "buffer.hpp"
 
+Buffer::Buffer(FaustDevice& device) : device{ device } {}
+
 Buffer::Buffer(FaustDevice& device, VkDeviceSize bufferSize, void* data, VkBufferUsageFlagBits usageFlags) : device{ device } {
 	setupBuffer(bufferSize, data, usageFlags);
 }

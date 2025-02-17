@@ -70,6 +70,8 @@ public:
 		throw std::runtime_error("failed to find suitable memory type!");
 	}
 
+	VkFormat findDepthFormat();
+	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
 private:
 	void createInstance();

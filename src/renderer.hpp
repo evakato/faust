@@ -1,9 +1,11 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 
 #include "device.hpp"
 #include "gui.hpp"
+#include "image.hpp"
 #include "window.hpp"
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
@@ -38,6 +40,7 @@ private:
 	void createCommandBuffers();
 	void createSyncObjects();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, DrawFrameParams& params);
+	void createDepthResources();
 
 	FaustDevice& device;
 	FaustWindow& window;
@@ -59,4 +62,6 @@ private:
 
 	uint32_t imageIndex;
 	VkResult result;
+
+	Image depthImage{ device };
 };
