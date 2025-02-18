@@ -1,8 +1,10 @@
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\buffer.cpp;C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\x64\Debug\buffer.obj
+C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\camera.cpp;C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\x64\Debug\camera.obj
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\device.cpp;C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\x64\Debug\device.obj
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\gui.cpp;C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\x64\Debug\gui.obj
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\image.cpp;C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\x64\Debug\image.obj
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\main.cpp;C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\x64\Debug\main.obj
+C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.cpp;C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\x64\Debug\model.obj
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\pipeline.cpp;C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\x64\Debug\pipeline.obj
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\renderer.cpp;C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\x64\Debug\renderer.obj
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\texture.cpp;C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\x64\Debug\texture.obj

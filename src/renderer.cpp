@@ -8,7 +8,7 @@ FaustRenderer::FaustRenderer(FaustDevice& device, FaustWindow& window) : device{
 	createFramebuffers();
 	createCommandBuffers();
 	createSyncObjects();
-	gui.initGui(renderPass);
+	gui.initGui(window.getGLFWwindow(), renderPass);
 }
 
 FaustRenderer::~FaustRenderer() {

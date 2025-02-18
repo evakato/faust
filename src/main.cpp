@@ -2,14 +2,6 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/hash.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -20,39 +12,27 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
-#include <unordered_map>
 
 #include "buffer.hpp"
+#include "camera.hpp"
+#include "math.hpp"
+#include "model.hpp"
 #include "image.hpp"
 #include "window.hpp"
 #include "pipeline.hpp"
 #include "device.hpp"
 #include "renderer.hpp"
 #include "texture.hpp"
+#include "state.hpp"
 
 const uint32_t WIDTH = 1600;
 const uint32_t HEIGHT = 900;
-
-const std::string MODEL_PATH = "assets/models/viking_room.obj";
-const std::string TEXTURE_PATH = "assets/textures/viking_room.png";
-
-std::vector<Vertex> vertices;
-std::vector<uint32_t> indices;
-
-namespace std {
-	template<> struct hash<Vertex> {
-		size_t operator()(Vertex const& vertex) const {
-			return ((hash<glm::vec3>()(vertex.pos) ^
-				(hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
-				(hash<glm::vec2>()(vertex.texCoord) << 1);
-		}
-	};
-}
 
 struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
+	alignas(4) int shadingSetting;
 };
 
 class HelloTriangleApplication {
@@ -70,8 +50,8 @@ private:
 	FaustRenderer renderer{ device2, window };
 
 	Texture texture{ device2, TEXTURE_PATH };
-	Buffer vertexBuffer{ device2 };
-	Buffer indexBuffer{ device2 };
+	Model model{ device2 };
+	Camera camera;
 
 	VkPipelineLayout pipelineLayout;
 	VkDescriptorSetLayout descriptorSetLayout;
@@ -85,11 +65,6 @@ private:
 	uint32_t currentFrame = 0;
 
 	void initVulkan() {
-
-		loadModel();
-		vertexBuffer.setupBuffer(sizeof(vertices[0]) * vertices.size(), (void*)vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-		indexBuffer.setupBuffer(sizeof(indices[0]) * indices.size(), (void*)indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-
 		createDescriptorSetLayout();
 		createPipelineLayout();
 
@@ -99,6 +74,9 @@ private:
 		createUniformBuffers();
 		createDescriptorPool();
 		createDescriptorSets();
+
+		camera.setCamera(glm::vec3(0.f, 0.f, 4.f), glm::vec3(0.f, 0.f, -1.f));
+		camera.setPerspectiveProjection(glm::radians(45.0f), (float)renderer.getExtent().width / (float)renderer.getExtent().height, 0.1f, 10.0f);
 	}
 
 	void mainLoop() {
@@ -106,17 +84,57 @@ private:
 			glfwPollEvents();
 
 			while (!renderer.beginFrame(currentFrame)) {};
+
+			auto& state = FaustState::getInstance();
+			state.currentKeyPress = window.detectKeypress();
+
+			switch (state.currentKeyPress) {
+			case KeyPress::CameraLeft:
+				camera.translate(glm::vec3{ cameraTranslateNeg, 0.f, 0.f });
+				break;
+			case KeyPress::CameraRight:
+				camera.translate(glm::vec3{ cameraTranslatePos, 0.f, 0.f });
+				break;
+			case KeyPress::CameraUp:
+				camera.translate(glm::vec3{ 0.f, cameraTranslatePos, 0.f });
+				break;
+			case KeyPress::CameraDown:
+				camera.translate(glm::vec3{ 0.f, cameraTranslateNeg, 0.f });
+				break;
+			case KeyPress::CameraForward:
+				camera.translate(glm::vec3{ 0.f, 0.f, cameraTranslateNeg });
+				break;
+			case KeyPress::CameraBackward:
+				camera.translate(glm::vec3{ 0.f, 0.f, cameraTranslatePos });
+				break;
+			case KeyPress::CameraViewLeft:
+				camera.pan(glm::vec3{ cameraPanPos, 0.f, 0.f });
+				break;
+			case KeyPress::CameraViewRight:
+				camera.pan(glm::vec3{ cameraPanNeg, 0.f, 0.f });
+				break;
+			case KeyPress::CameraViewUp:
+				camera.pan(glm::vec3{ 0.f, cameraPanNeg, 0.f });
+				break;
+			case KeyPress::CameraViewDown:
+				camera.pan(glm::vec3{ 0.f, cameraPanPos, 0.f });
+				break;
+			}
+			if (state.currentKeyPress != KeyPress::None)
+				state.currentKeyPress = KeyPress::None;
+
+
 			updateUniformBuffer(currentFrame);
 
 			DrawFrameParams params;
 			params.currentFrame = currentFrame;
 			params.bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 			params.pipeline = pipeline.getPipeline();
-			params.vertexBuffer = vertexBuffer.getBuffer();
-			params.indexBuffer = indexBuffer.getBuffer();
+			params.vertexBuffer = model.getVertexBuffer();
+			params.indexBuffer = model.getIndexBuffer();
 			params.pipelineLayout = pipelineLayout;
 			params.descriptorSets = descriptorSets;
-			params.indexCount = indices.size();
+			params.indexCount = model.getIndexCount();
 			renderer.drawFrame(params);
 		}
 
@@ -135,43 +153,6 @@ private:
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 	}
 
-	void loadModel() {
-		tinyobj::attrib_t attrib;
-		std::vector<tinyobj::shape_t> shapes;
-		std::vector<tinyobj::material_t> materials;
-		std::string warn, err;
-
-		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
-			throw std::runtime_error(warn + err);
-		}
-
-		std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-		for (const auto& shape : shapes) {
-			for (const auto& index : shape.mesh.indices) {
-				Vertex vertex{};
-
-				vertex.pos = {
-					attrib.vertices[3 * index.vertex_index + 0],
-					attrib.vertices[3 * index.vertex_index + 1],
-					attrib.vertices[3 * index.vertex_index + 2]
-				};
-
-				vertex.texCoord = {
-					attrib.texcoords[2 * index.texcoord_index + 0],
-					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-				};
-
-				vertex.color = { 1.0f, 1.0f, 1.0f };
-
-				if (uniqueVertices.count(vertex) == 0) {
-					uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-					vertices.push_back(vertex);
-				}
-				indices.push_back(uniqueVertices[vertex]);
-			}
-		}
-	}
 
 	void createPipelineLayout() {
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -299,10 +280,10 @@ private:
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
 		UniformBufferObject ubo{};
-		ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.proj = glm::perspective(glm::radians(45.0f), renderer.getExtent().width / (float)renderer.getExtent().height, 0.1f, 10.0f); // takes care of screen resizing 
-		ubo.proj[1][1] *= -1;
+		ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.view = camera.getView();
+		ubo.proj = camera.getProjection();
+		ubo.shadingSetting = static_cast<int>(FaustState::getInstance().shadingSetting);
 
 		memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 	}

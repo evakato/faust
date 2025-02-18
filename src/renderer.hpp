@@ -44,7 +44,7 @@ private:
 
 	FaustDevice& device;
 	FaustWindow& window;
-	FaustGui gui{ window, device };
+	FaustGui gui{ device };
 
 	VkSwapchainKHR swapChain;
 	std::vector<VkImage> swapChainImages;

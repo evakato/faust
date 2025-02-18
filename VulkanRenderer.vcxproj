@@ -119,6 +119,10 @@
       <AdditionalLibraryDirectories>C:\VulkanSDK\1.3.290.0\Lib;C:\Users\evaka\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>cd /d "$(ProjectDir)shaders" &amp;&amp; call compile.bat
+</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -139,6 +143,10 @@
       <AdditionalLibraryDirectories>C:\VulkanSDK\1.3.290.0\Lib;C:\Users\evaka\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>cd /d "$(ProjectDir)shaders" &amp;&amp; call compile.bat
+</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="shaders\basic.frag" />
@@ -147,10 +155,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\buffer.cpp" />
+    <ClCompile Include="src\camera.cpp" />
     <ClCompile Include="src\device.cpp" />
     <ClCompile Include="src\gui.cpp" />
     <ClCompile Include="src\image.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\model.cpp" />
     <ClCompile Include="src\pipeline.cpp" />
     <ClCompile Include="src\renderer.cpp" />
     <ClCompile Include="src\texture.cpp" />
@@ -165,9 +175,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\buffer.hpp" />
+    <ClInclude Include="src\camera.hpp" />
     <ClInclude Include="src\device.hpp" />
+    <ClInclude Include="src\math.hpp" />
+    <ClInclude Include="src\state.hpp" />
     <ClInclude Include="src\gui.hpp" />
     <ClInclude Include="src\image.hpp" />
+    <ClInclude Include="src\model.hpp" />
     <ClInclude Include="src\pipeline.hpp" />
     <ClInclude Include="src\renderer.hpp" />
     <ClInclude Include="src\texture.hpp" />

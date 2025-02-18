@@ -1,9 +1,13 @@
-﻿  main.cpp
+﻿  Press any key to continue . . . 
+  model.cpp
   GLM_GTX_hash requires C++11 standard library support
-C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\main.cpp(119,36): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.hpp(77,49): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
+  (compiling source file 'src/model.cpp')
+  
+C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.cpp(61,33): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
   Generating code
-  119 of 5883 functions ( 2.0%) were compiled, the rest were copied from previous compilation.
-    22 functions were new in current compilation
-    240 functions had inline decision re-evaluated but remain unchanged
+  3 of 4977 functions (<0.1%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    53 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   VulkanRenderer.vcxproj -> C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\x64\Release\VulkanRenderer.exe

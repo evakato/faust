@@ -9,14 +9,12 @@ static void check_vk_result(VkResult err)
 		abort();
 }
 
-
-FaustGui::FaustGui(FaustWindow& window, FaustDevice& device) : window{ window }, device{ device } {
+FaustGui::FaustGui(FaustDevice& device) : device{ device } {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-
 }
 
 FaustGui::~FaustGui() {
@@ -26,8 +24,7 @@ FaustGui::~FaustGui() {
 	ImGui::DestroyContext();
 }
 
-
-void FaustGui::initGui(VkRenderPass renderPass) {
+void FaustGui::initGui(GLFWwindow* window, VkRenderPass renderPass) {
 	VkDescriptorPoolSize pool_sizes[] =
 	{
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE },
@@ -43,7 +40,7 @@ void FaustGui::initGui(VkRenderPass renderPass) {
 	auto err = vkCreateDescriptorPool(device.getDevice(), &pool_info, nullptr, &imguiPool);
 	check_vk_result(err);
 
-	ImGui_ImplGlfw_InitForVulkan(window.getGLFWwindow(), true);
+	ImGui_ImplGlfw_InitForVulkan(window, true);
 	ImGui_ImplVulkan_InitInfo init_info = {};
 	init_info.Instance = device.getInstance();
 	init_info.PhysicalDevice = device.getPhysicalDevice();
@@ -63,11 +60,24 @@ void FaustGui::initGui(VkRenderPass renderPass) {
 }
 
 
+void mainWindow() {
+	ImGui::Begin("Hello, world!");
+	FaustState& state = FaustState::getInstance();
+	ImGui::Text("Number of tris: %d", state.numTris);
+	//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+	int currentIndex = static_cast<int>(state.shadingSetting);
+
+	if (ImGui::Combo("Shading Mode", &currentIndex, shadingOptions, IM_ARRAYSIZE(shadingOptions))) {
+		state.shadingSetting = static_cast<ShadingSettings>(currentIndex);
+	}
+	ImGui::End();
+}
+
 void FaustGui::startFrame() {
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
-	ImGui::ShowDemoWindow();
+	mainWindow();
 	ImGui::Render();
 }
 
@@ -75,3 +85,4 @@ void FaustGui::render(VkCommandBuffer commandBuffer) {
 	ImDrawData* draw_data = ImGui::GetDrawData();
 	ImGui_ImplVulkan_RenderDrawData(draw_data, commandBuffer);
 }
+

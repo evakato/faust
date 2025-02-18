@@ -23,3 +23,40 @@ void FaustWindow::framebufferResizeCallback(GLFWwindow* window, int width, int h
 	faustWindow->width = width;
 	faustWindow->height = height;
 }
+
+KeyPress FaustWindow::detectKeypress() {
+	if (FaustState::getInstance().currentKeyPress != KeyPress::None)
+		return KeyPress::None;
+
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+		return KeyPress::CameraLeft;
+	}
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+		return KeyPress::CameraRight;
+	}
+	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+		return KeyPress::CameraForward;
+	}
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+		return KeyPress::CameraBackward;
+	}
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+		return KeyPress::CameraUp;
+	}
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+		return KeyPress::CameraDown;
+	}
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+		return KeyPress::CameraViewUp;
+	}
+	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+		return KeyPress::CameraViewDown;
+	}
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+		return KeyPress::CameraViewRight;
+	}
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+		return KeyPress::CameraViewLeft;
+	}
+	return KeyPress::None;
+}
