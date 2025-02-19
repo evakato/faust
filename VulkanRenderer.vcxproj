@@ -152,6 +152,8 @@
     <None Include="shaders\basic.frag" />
     <None Include="shaders\basic.vert" />
     <None Include="shaders\compile.bat" />
+    <None Include="shaders\point_light.frag" />
+    <None Include="shaders\point_light.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\buffer.cpp" />
@@ -177,6 +179,7 @@
     <ClInclude Include="src\buffer.hpp" />
     <ClInclude Include="src\camera.hpp" />
     <ClInclude Include="src\device.hpp" />
+    <ClInclude Include="src\light.hpp" />
     <ClInclude Include="src\math.hpp" />
     <ClInclude Include="src\state.hpp" />
     <ClInclude Include="src\gui.hpp" />

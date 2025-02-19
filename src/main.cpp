@@ -24,16 +24,27 @@
 #include "renderer.hpp"
 #include "texture.hpp"
 #include "state.hpp"
+#include "light.hpp"
 
 const uint32_t WIDTH = 1600;
 const uint32_t HEIGHT = 900;
+
+const glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0, 3.0, -1.0));
+
+const PointLight pl;
+const AmbientLight al{ glm::vec4{1.0f, 1.0f, 1.0f, 0.1f } };
 
 struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
-	alignas(4) int shadingSetting;
+	alignas(16) glm::mat4 normalMat;
+	alignas(16) glm::vec4 directionalLight;
+	alignas(16) PointLight pointLight;
+	alignas(16) AmbientLight ambientLight;
 };
+
+std::string floorPath = "assets/models/floor.obj";
 
 class HelloTriangleApplication {
 public:
@@ -46,37 +57,49 @@ public:
 private:
 	FaustWindow window{ WIDTH, HEIGHT };
 	FaustDevice device2{ window };
-	FaustPipeline pipeline{ device2 };
 	FaustRenderer renderer{ device2, window };
 
-	Texture texture{ device2, TEXTURE_PATH };
-	Model model{ device2 };
-	Camera camera;
+	FaustPipeline pipeline{ device2, "shaders/basic.vert.spv", "shaders/basic.frag.spv" };
+	FaustPipeline pointLightPipeline{ device2, "shaders/point_light.vert.spv", "shaders/point_light.frag.spv" };
+
+	Texture texture{ device2, FaustState::getInstance().texturePath };
+	Camera camera{ glm::vec3(0.f, 2.f, 8.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.0f, 1.0f, 0.0f) };
+	Model mainModel{ device2, FaustState::getInstance().modelPath };
+	Model floorModel{ device2, floorPath };
+	std::vector<Model*> models;
 
 	VkPipelineLayout pipelineLayout;
 	VkDescriptorSetLayout descriptorSetLayout;
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
 
-	std::vector<VkBuffer> uniformBuffers;
-	std::vector<VkDeviceMemory> uniformBuffersMemory;
+	std::vector<Buffer> uniformBuffers;
 	std::vector<void*> uniformBuffersMapped;
 
 	uint32_t currentFrame = 0;
 
 	void initVulkan() {
+		models.push_back(&mainModel);
+		models.push_back(&floorModel);
+
 		createDescriptorSetLayout();
 		createPipelineLayout();
 
 		auto renderPass = renderer.getRenderPass();
-		pipeline.createGraphicsPipeline(renderPass, pipelineLayout);
+
+		auto bindingDescription = Vertex::getBindingDescription();
+		auto attributeDescriptions = Vertex::getAttributeDescriptions();
+		PipelineParams pipelineParams = { renderPass, pipelineLayout, {bindingDescription}, attributeDescriptions };
+		pipeline.createGraphicsPipeline(pipelineParams);
+
+		PipelineParams pointLightPipelineParams{ renderPass, pipelineLayout, {}, {} , 1 };
+		pointLightPipeline.createGraphicsPipeline(pointLightPipelineParams);
 
 		createUniformBuffers();
 		createDescriptorPool();
 		createDescriptorSets();
 
-		camera.setCamera(glm::vec3(0.f, 0.f, 4.f), glm::vec3(0.f, 0.f, -1.f));
-		camera.setPerspectiveProjection(glm::radians(45.0f), (float)renderer.getExtent().width / (float)renderer.getExtent().height, 0.1f, 10.0f);
+		camera.setPerspectiveProjection(glm::radians(45.0f), (float)renderer.getExtent().width / (float)renderer.getExtent().height, 0.1f, 100.0f);
 	}
 
 	void mainLoop() {
@@ -102,27 +125,31 @@ private:
 				camera.translate(glm::vec3{ 0.f, cameraTranslateNeg, 0.f });
 				break;
 			case KeyPress::CameraForward:
-				camera.translate(glm::vec3{ 0.f, 0.f, cameraTranslateNeg });
-				break;
-			case KeyPress::CameraBackward:
 				camera.translate(glm::vec3{ 0.f, 0.f, cameraTranslatePos });
 				break;
+			case KeyPress::CameraBackward:
+				camera.translate(glm::vec3{ 0.f, 0.f, cameraTranslateNeg });
+				break;
 			case KeyPress::CameraViewLeft:
-				camera.pan(glm::vec3{ cameraPanPos, 0.f, 0.f });
+				camera.rotate(-cameraPan, 0.0f);
 				break;
 			case KeyPress::CameraViewRight:
-				camera.pan(glm::vec3{ cameraPanNeg, 0.f, 0.f });
+				camera.rotate(cameraPan, 0.0f);
 				break;
 			case KeyPress::CameraViewUp:
-				camera.pan(glm::vec3{ 0.f, cameraPanNeg, 0.f });
+				camera.rotate(0.0f, cameraPan);
 				break;
 			case KeyPress::CameraViewDown:
-				camera.pan(glm::vec3{ 0.f, cameraPanPos, 0.f });
+				camera.rotate(0.0f, -cameraPan);
 				break;
 			}
 			if (state.currentKeyPress != KeyPress::None)
 				state.currentKeyPress = KeyPress::None;
 
+			if (state.modelChanged) {
+				mainModel.setupNewModel(state.modelPath);
+				state.modelChanged = false;
+			}
 
 			updateUniformBuffer(currentFrame);
 
@@ -130,11 +157,10 @@ private:
 			params.currentFrame = currentFrame;
 			params.bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 			params.pipeline = pipeline.getPipeline();
-			params.vertexBuffer = model.getVertexBuffer();
-			params.indexBuffer = model.getIndexBuffer();
 			params.pipelineLayout = pipelineLayout;
 			params.descriptorSets = descriptorSets;
-			params.indexCount = model.getIndexCount();
+			params.models = models;
+			params.pointLightPipeline = pointLightPipeline.getPipeline();
 			renderer.drawFrame(params);
 		}
 
@@ -143,16 +169,9 @@ private:
 
 	void cleanup() {
 		auto device = device2.getDevice();
-
-		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			vkDestroyBuffer(device, uniformBuffers[i], nullptr);
-			vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
-		}
-
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 	}
-
 
 	void createPipelineLayout() {
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -172,7 +191,7 @@ private:
 		uboLayoutBinding.binding = 0;
 		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		uboLayoutBinding.descriptorCount = 1; // number of uniform buffer objects
-		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; // which shader stage the descriptor is going to be referenced
+		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT; // which shader stage the descriptor is going to be referenced
 		uboLayoutBinding.pImmutableSamplers = nullptr; // Optional, for image sampling
 
 		// combined image sampler descriptor
@@ -228,7 +247,7 @@ private:
 
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 			VkDescriptorBufferInfo bufferInfo{}; // our descriptors refer to buffers
-			bufferInfo.buffer = uniformBuffers[i];
+			bufferInfo.buffer = uniformBuffers[i].getBuffer();
 			bufferInfo.offset = 0;
 			bufferInfo.range = sizeof(UniformBufferObject);
 
@@ -263,14 +282,14 @@ private:
 	void createUniformBuffers() {
 		VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
-		uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-		uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+		uniformBuffers.reserve(MAX_FRAMES_IN_FLIGHT);
 		uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
 
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			Buffer::createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i], device2.getDevice(), device2.getPhysicalDevice());
+			uniformBuffers.emplace_back(device2);
+			uniformBuffers.back().createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-			vkMapMemory(device2.getDevice(), uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]); // buffer stays mapped to pointer for the app's whole lifetime "persistent mapping"
+			vkMapMemory(device2.getDevice(), uniformBuffers[i].getBufferMemory(), 0, bufferSize, 0, &uniformBuffersMapped[i]); // buffer stays mapped to pointer for the app's whole lifetime "persistent mapping"
 		}
 	}
 
@@ -280,14 +299,21 @@ private:
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
 		UniformBufferObject ubo{};
-		ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		//ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.model = glm::mat4(1.0f);
 		ubo.view = camera.getView();
 		ubo.proj = camera.getProjection();
-		ubo.shadingSetting = static_cast<int>(FaustState::getInstance().shadingSetting);
+		ubo.normalMat = glm::inverse(glm::transpose(ubo.model));
+		ubo.directionalLight = glm::vec4{ lightDir, static_cast<int>(FaustState::getInstance().shadingSetting) };
+		ubo.pointLight = pl;
+		ubo.ambientLight = al;
+
+		auto& state = FaustState::getInstance();
+		state.pointLightPos = ubo.pointLight.position;
+		state.pointLightCol = ubo.pointLight.color;
 
 		memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 	}
-
 };
 
 int main() {

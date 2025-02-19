@@ -11,9 +11,13 @@ public:
 	~Buffer();
 
 	VkBuffer getBuffer() const { return buffer; }
+	VkDeviceMemory getBufferMemory() const { return bufferMemory; }
+
 	void setupBuffer(VkDeviceSize bufferSize, void* newData, VkBufferUsageFlagBits usageFlags);
 
 	static void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkDevice device, VkPhysicalDevice pd);
+	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+
 	static VkCommandBuffer beginSingleTimeCommands(FaustDevice& device);
 	static void endSingleTimeCommands(FaustDevice& device, VkCommandBuffer commandBuffer);
 
@@ -22,6 +26,6 @@ private:
 
 	FaustDevice& device;
 
-	VkBuffer buffer;
-	VkDeviceMemory bufferMemory;
+	VkBuffer buffer = VK_NULL_HANDLE;
+	VkDeviceMemory bufferMemory = VK_NULL_HANDLE;
 };

@@ -3,7 +3,7 @@
 
 #include "pipeline.hpp"
 
-FaustPipeline::FaustPipeline(FaustDevice& device) : device{ device }
+FaustPipeline::FaustPipeline(FaustDevice& device, const std::string& vertShader, const std::string& fragShader) : device{ device }, vertShader{ vertShader }, fragShader{ fragShader }
 {};
 
 FaustPipeline::~FaustPipeline() {
@@ -42,9 +42,9 @@ VkShaderModule FaustPipeline::createShaderModule(const std::vector<char>& code) 
 	return shaderModule;
 }
 
-void FaustPipeline::createGraphicsPipeline(VkRenderPass renderPass, VkPipelineLayout pipelineLayout) {
-	auto vertShaderCode = readFile("shaders/vert.spv");
-	auto fragShaderCode = readFile("shaders/frag.spv");
+void FaustPipeline::createGraphicsPipeline(PipelineParams& params) {
+	auto vertShaderCode = readFile(vertShader);
+	auto fragShaderCode = readFile(fragShader);
 
 	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
 	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -63,16 +63,15 @@ void FaustPipeline::createGraphicsPipeline(VkRenderPass renderPass, VkPipelineLa
 
 	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
+	auto& bindingDescriptions = params.bindingDescriptions;
+	auto& attributeDescriptions = params.attributeDescriptions;
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
-	auto bindingDescription = Vertex::getBindingDescription();
-	auto attributeDescriptions = Vertex::getAttributeDescriptions();
-
-	vertexInputInfo.vertexBindingDescriptionCount = 1;
-	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.vertexAttributeDescriptionCount =
+		static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
 	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+	vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -102,6 +101,7 @@ void FaustPipeline::createGraphicsPipeline(VkRenderPass renderPass, VkPipelineLa
 	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
 	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	colorBlendAttachment.blendEnable = VK_FALSE;
+	if (params.enableAlphaBlending) enableAlphaBlending(colorBlendAttachment);
 
 	VkPipelineColorBlendStateCreateInfo colorBlending{};
 	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -148,8 +148,8 @@ void FaustPipeline::createGraphicsPipeline(VkRenderPass renderPass, VkPipelineLa
 	pipelineInfo.pColorBlendState = &colorBlending;
 	pipelineInfo.pDepthStencilState = &depthStencil;
 	pipelineInfo.pDynamicState = &dynamicState;
-	pipelineInfo.layout = pipelineLayout;
-	pipelineInfo.renderPass = renderPass;
+	pipelineInfo.layout = params.pipelineLayout;
+	pipelineInfo.renderPass = params.renderPass;
 	pipelineInfo.subpass = 0;
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
@@ -159,4 +159,17 @@ void FaustPipeline::createGraphicsPipeline(VkRenderPass renderPass, VkPipelineLa
 
 	vkDestroyShaderModule(device.getDevice(), fragShaderModule, nullptr);
 	vkDestroyShaderModule(device.getDevice(), vertShaderModule, nullptr);
+}
+
+void FaustPipeline::enableAlphaBlending(VkPipelineColorBlendAttachmentState& colorBlendAttachment) {
+	colorBlendAttachment.blendEnable = VK_TRUE;
+	colorBlendAttachment.colorWriteMask =
+		VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+		VK_COLOR_COMPONENT_A_BIT;
+	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 }

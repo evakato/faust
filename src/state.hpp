@@ -1,5 +1,7 @@
 #pragma once 
 
+#include "math.hpp"
+
 enum class KeyPress {
 	None,
 	CameraLeft,
@@ -14,11 +16,11 @@ enum class KeyPress {
 	CameraViewLeft,
 };
 
-static const char* shadingOptions[] = { "Normals", "Textured", "Directional" };
+static const char* shadingOptions[] = { "Normals", "Textured", "Diffuse" };
 enum class ShadingSettings {
 	Normals,
 	Textured,
-	Directional,
+	Diffuse,
 };
 
 struct FaustState {
@@ -31,7 +33,19 @@ struct FaustState {
 
 	KeyPress currentKeyPress = KeyPress::None;
 
-	ShadingSettings shadingSetting = ShadingSettings::Textured;
+	ShadingSettings shadingSetting = ShadingSettings::Diffuse;
+
+	std::string modelPath = "assets/models/vase.obj";
+	std::string texturePath = "assets/textures/viking_room.png";
+	bool modelChanged = false;
+
+	// camera
+	glm::vec3 cameraPos;
+	glm::vec3 cameraViewDir;
+	glm::vec3 cameraUpDir;
+	// light
+	glm::vec3 pointLightPos;
+	glm::vec3 pointLightCol;
 
 private:
 	FaustState() {}  // Private constructor to enforce singleton pattern

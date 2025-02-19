@@ -9,9 +9,6 @@
 #include "state.hpp"
 #include "pipeline.hpp"
 
-const std::string MODEL_PATH = "assets/models/viking_room.obj";
-const std::string TEXTURE_PATH = "assets/textures/viking_room.png";
-
 struct Vertex {
 	glm::vec3 pos;
 	glm::vec3 color;
@@ -27,8 +24,8 @@ struct Vertex {
 		return bindingDescription;
 	}
 
-	static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
-		std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
+	static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+		std::vector<VkVertexInputAttributeDescription> attributeDescriptions(4);
 
 		attributeDescriptions[0].location = 0;
 		attributeDescriptions[0].binding = 0;
@@ -69,15 +66,17 @@ namespace std {
 
 class Model {
 public:
-	Model(FaustDevice& device);
+	Model(FaustDevice& device, std::string& modelPath);
 	~Model();
 
 	VkBuffer getVertexBuffer() const { return vertexBuffer.getBuffer(); }
 	VkBuffer getIndexBuffer() const { return indexBuffer.getBuffer(); }
 	int getIndexCount() const { return indices.size(); }
 
+	void setupNewModel(std::string& modelPath);
+
 private:
-	void loadModel();
+	void loadModel(std::string& modelPath);
 
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;

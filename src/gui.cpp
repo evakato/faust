@@ -12,9 +12,9 @@ static void check_vk_result(VkResult err)
 FaustGui::FaustGui(FaustDevice& device) : device{ device } {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+	io = &ImGui::GetIO();
+	io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 }
 
 FaustGui::~FaustGui() {
@@ -57,20 +57,10 @@ void FaustGui::initGui(GLFWwindow* window, VkRenderPass renderPass) {
 	init_info.Allocator = nullptr;
 	init_info.CheckVkResultFn = check_vk_result;
 	ImGui_ImplVulkan_Init(&init_info);
-}
 
-
-void mainWindow() {
-	ImGui::Begin("Hello, world!");
-	FaustState& state = FaustState::getInstance();
-	ImGui::Text("Number of tris: %d", state.numTris);
-	//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-	int currentIndex = static_cast<int>(state.shadingSetting);
-
-	if (ImGui::Combo("Shading Mode", &currentIndex, shadingOptions, IM_ARRAYSIZE(shadingOptions))) {
-		state.shadingSetting = static_cast<ShadingSettings>(currentIndex);
-	}
-	ImGui::End();
+	fileDialog.SetTitle("Open model");
+	fileDialog.SetTypeFilters({ ".obj" });
+	fileDialog.SetDirectory("./assets/models");
 }
 
 void FaustGui::startFrame() {
@@ -86,3 +76,43 @@ void FaustGui::render(VkCommandBuffer commandBuffer) {
 	ImGui_ImplVulkan_RenderDrawData(draw_data, commandBuffer);
 }
 
+void FaustGui::viewFileBrowser() {
+	if (ImGui::Button("open file dialog"))
+		fileDialog.Open();
+
+	fileDialog.Display();
+
+	if (fileDialog.HasSelected())
+	{
+		FaustState& state = FaustState::getInstance();
+		state.modelPath = fileDialog.GetSelected().string();
+		state.modelChanged = true;
+		fileDialog.ClearSelected();
+	}
+}
+
+void FaustGui::mainWindow() {
+	ImGui::Begin("Hello, world!");
+	ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io->Framerate, io->Framerate);
+
+	FaustState& state = FaustState::getInstance();
+	ImGui::Text("Number of tris: %d", state.numTris);
+	ImGui::Text("Filepath: %s", state.modelPath.c_str());
+	int currentIndex = static_cast<int>(state.shadingSetting);
+
+	if (ImGui::Combo("Shading Mode", &currentIndex, shadingOptions, IM_ARRAYSIZE(shadingOptions))) {
+		state.shadingSetting = static_cast<ShadingSettings>(currentIndex);
+	}
+
+	ImGui::Text("Camera position: (%.2f, %.2f, %.2f)", state.cameraPos.x, state.cameraPos.y, state.cameraPos.z);
+	ImGui::Text("Camera view direction: (%.2f, %.2f, %.2f)", state.cameraViewDir.x, state.cameraViewDir.y, state.cameraViewDir.z);
+	ImGui::Text("Camera up direction: (%.2f, %.2f, %.2f)", state.cameraUpDir.x, state.cameraUpDir.y, state.cameraUpDir.z);
+
+	ImGui::Spacing();
+	ImGui::Text("Point light pos: (%.2f, %.2f, %.2f)", state.pointLightPos.x, state.pointLightPos.y, state.pointLightPos.z);
+	ImVec4 color = ImVec4(state.pointLightCol.x, state.pointLightCol.y, state.pointLightCol.z, 1.0f);
+	ImGui::ColorPicker4("Pick a color", (float*)&color);
+
+	viewFileBrowser();
+	ImGui::End();
+}

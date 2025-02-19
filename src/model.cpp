@@ -2,23 +2,27 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
-Model::Model(FaustDevice& device) : device{ device } {
-	loadModel();
+Model::Model(FaustDevice& device, std::string& modelPath) : device{ device } {
+	setupNewModel(modelPath);
+}
+
+Model::~Model() {}
+
+void Model::setupNewModel(std::string& modelPath) {
+	vertices.clear();
+	indices.clear();
+	loadModel(modelPath);
 	vertexBuffer.setupBuffer(sizeof(vertices[0]) * vertices.size(), (void*)vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 	indexBuffer.setupBuffer(sizeof(indices[0]) * indices.size(), (void*)indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 }
 
-Model::~Model() {
-
-}
-
-void Model::loadModel() {
+void Model::loadModel(std::string& modelPath) {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
 	std::string warn, err;
 
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
+	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelPath.c_str())) {
 		throw std::runtime_error(warn + err);
 	}
 

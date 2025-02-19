@@ -7,17 +7,29 @@
 #include "math.hpp"
 #include "model.hpp"
 
+struct PipelineParams {
+	VkRenderPass renderPass;
+	VkPipelineLayout pipelineLayout;
+	std::vector<VkVertexInputBindingDescription> bindingDescriptions{};
+	std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+	bool enableAlphaBlending = false;
+};
+
 class FaustPipeline {
 public:
-	FaustPipeline(FaustDevice& device);
+	FaustPipeline(FaustDevice& device, const std::string& vertShader, const std::string& fragShader);
 	~FaustPipeline();
 
-	void createGraphicsPipeline(VkRenderPass renderPass, VkPipelineLayout pipelineLayout);
+	void createGraphicsPipeline(PipelineParams& params);
 	VkPipeline getPipeline() const { return graphicsPipeline; }
 
 private:
 	VkShaderModule createShaderModule(const std::vector<char>& code);
+	void enableAlphaBlending(VkPipelineColorBlendAttachmentState& colorBlendAttachment);
+
+	FaustDevice& device;
 
 	VkPipeline graphicsPipeline;
-	FaustDevice& device;
+	const std::string vertShader;
+	const std::string fragShader;
 };

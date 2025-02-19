@@ -6,6 +6,7 @@
 #include "device.hpp"
 #include "gui.hpp"
 #include "image.hpp"
+#include "model.hpp"
 #include "window.hpp"
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
@@ -14,11 +15,10 @@ struct DrawFrameParams {
 	uint32_t currentFrame;
 	VkPipelineBindPoint bindPoint;
 	VkPipeline pipeline;
-	VkBuffer vertexBuffer;
-	VkBuffer indexBuffer;
 	VkPipelineLayout pipelineLayout;
 	std::vector<VkDescriptorSet> descriptorSets;
-	int indexCount;
+	std::vector<Model*> models;
+	VkPipeline pointLightPipeline;
 };
 
 class FaustRenderer {

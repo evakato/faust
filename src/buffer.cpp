@@ -12,6 +12,15 @@ Buffer::~Buffer() {
 }
 
 void Buffer::setupBuffer(VkDeviceSize bufferSize, void* newData, VkBufferUsageFlagBits usageFlags) {
+	if (buffer != VK_NULL_HANDLE) {
+		vkDestroyBuffer(device.getDevice(), buffer, nullptr);
+		buffer = VK_NULL_HANDLE;
+	}
+	if (bufferMemory != VK_NULL_HANDLE) {
+		vkFreeMemory(device.getDevice(), bufferMemory, nullptr);
+		bufferMemory = VK_NULL_HANDLE;
+	}
+
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory, device.getDevice(), device.getPhysicalDevice()); // src flag = buffer is source in a memory transfer
@@ -53,6 +62,32 @@ void Buffer::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryP
 	}
 
 	vkBindBufferMemory(device, buffer, bufferMemory, 0);
+}
+
+void Buffer::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
+	VkBufferCreateInfo bufferInfo{};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = size;
+	bufferInfo.usage = usage;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(device.getDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create vertex buffer!");
+	}
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(device.getDevice(), buffer, &memRequirements);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+	allocInfo.memoryTypeIndex = FaustDevice::findMemoryType(memRequirements.memoryTypeBits, properties, device.getPhysicalDevice());
+
+	if (vkAllocateMemory(device.getDevice(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate vertex buffer memory!");
+	}
+
+	vkBindBufferMemory(device.getDevice(), buffer, bufferMemory, 0);
 }
 
 VkCommandBuffer Buffer::beginSingleTimeCommands(FaustDevice& device) {

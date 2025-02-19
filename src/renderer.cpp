@@ -301,8 +301,6 @@ void FaustRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 
 	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	vkCmdBindPipeline(commandBuffer, params.bindPoint, params.pipeline);
-
 	VkViewport viewport{};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
@@ -317,14 +315,20 @@ void FaustRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 	scissor.extent = swapChainExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	VkBuffer vertexBuffers[] = { params.vertexBuffer };
-	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
-	vkCmdBindIndexBuffer(commandBuffer, params.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, params.pipelineLayout, 0, 1, &params.descriptorSets[params.currentFrame], 0, nullptr);
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(params.indexCount), 1, 0, 0, 0);
+
+	vkCmdBindPipeline(commandBuffer, params.bindPoint, params.pipeline);
+
+	for (const auto model : params.models) {
+		VkBuffer vertexBuffers[] = { model->getVertexBuffer() };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+		vkCmdBindIndexBuffer(commandBuffer, model->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getIndexCount()), 1, 0, 0, 0);
+	}
+
+	vkCmdBindPipeline(commandBuffer, params.bindPoint, params.pointLightPipeline);
+	vkCmdDraw(commandBuffer, 6, 1, 0, 0);
 
 	gui.render(commandBuffer);
 
