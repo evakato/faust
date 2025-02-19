@@ -1,4 +1,25 @@
 ﻿  Press any key to continue . . . 
+  main.cpp
+  GLM_GTX_hash requires C++11 standard library support
+C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.hpp(74,49): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
+  (compiling source file 'src/main.cpp')
+  
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\shared\minwindef.h(130,1): warning C4005: 'APIENTRY': macro redefinition
+  (compiling source file 'src/main.cpp')
+  C:\Users\evaka\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\include\GLFW\glfw3.h(123,1):
+  see previous definition of 'APIENTRY'
+  
+  model.cpp
+  GLM_GTX_hash requires C++11 standard library support
+C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.hpp(74,49): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
+  (compiling source file 'src/model.cpp')
+  
+C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.cpp(65,33): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  pipeline.cpp
+  GLM_GTX_hash requires C++11 standard library support
+C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.hpp(74,49): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
+  (compiling source file 'src/pipeline.cpp')
+  
   renderer.cpp
 C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\shared\minwindef.h(130,1): warning C4005: 'APIENTRY': macro redefinition
   (compiling source file 'src/renderer.cpp')
@@ -9,4 +30,6 @@ C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\shared\minwindef.h(1
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.hpp(74,49): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file 'src/renderer.cpp')
   
+  Generating Code...
+C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\camera.hpp(18): warning C4172: returning address of local variable or temporary
   VulkanRenderer.vcxproj -> C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\x64\Debug\VulkanRenderer.exe

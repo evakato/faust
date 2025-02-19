@@ -24,6 +24,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
     mat4 normalMat;
+    mat4 invView;
     vec4 directionalLight;
     PointLight pointLight;
     AmbientLight ambientLight;

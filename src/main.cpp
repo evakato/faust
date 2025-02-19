@@ -31,14 +31,16 @@ const uint32_t HEIGHT = 900;
 
 const glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0, 3.0, -1.0));
 
-const PointLight pl;
 const AmbientLight al{ glm::vec4{1.0f, 1.0f, 1.0f, 0.1f } };
+
+auto& state = FaustState::getInstance();
 
 struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
 	alignas(16) glm::mat4 normalMat;
+	alignas(16) glm::mat4 invView;
 	alignas(16) glm::vec4 directionalLight;
 	alignas(16) PointLight pointLight;
 	alignas(16) AmbientLight ambientLight;
@@ -78,9 +80,14 @@ private:
 
 	uint32_t currentFrame = 0;
 
+	PointLight pointLight1;
+
 	void initVulkan() {
 		models.push_back(&mainModel);
 		models.push_back(&floorModel);
+		state.numTris = static_cast<float>(mainModel.getIndexCount()) / 3.0f;
+		state.setPointLightCol(pointLight1.color);
+		state.pointLightPos = pointLight1.position;
 
 		createDescriptorSetLayout();
 		createPipelineLayout();
@@ -155,12 +162,11 @@ private:
 
 			DrawFrameParams params;
 			params.currentFrame = currentFrame;
-			params.bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-			params.pipeline = pipeline.getPipeline();
 			params.pipelineLayout = pipelineLayout;
 			params.descriptorSets = descriptorSets;
 			params.models = models;
-			params.pointLightPipeline = pointLightPipeline.getPipeline();
+			params.pipeline = &pipeline;
+			params.pointLightPipeline = &pointLightPipeline;
 			renderer.drawFrame(params);
 		}
 
@@ -183,7 +189,6 @@ private:
 		if (vkCreatePipelineLayout(device2.getDevice(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
-
 	}
 
 	void createDescriptorSetLayout() {
@@ -302,15 +307,17 @@ private:
 		//ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		ubo.model = glm::mat4(1.0f);
 		ubo.view = camera.getView();
+		ubo.invView = camera.getInvView();
 		ubo.proj = camera.getProjection();
 		ubo.normalMat = glm::inverse(glm::transpose(ubo.model));
 		ubo.directionalLight = glm::vec4{ lightDir, static_cast<int>(FaustState::getInstance().shadingSetting) };
-		ubo.pointLight = pl;
+
+		pointLight1.color = state.getPointLightCol();
+
+		ubo.pointLight = pointLight1;
 		ubo.ambientLight = al;
 
-		auto& state = FaustState::getInstance();
-		state.pointLightPos = ubo.pointLight.position;
-		state.pointLightCol = ubo.pointLight.color;
+		//state.pointLightPos = ubo.pointLight.position;
 
 		memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 	}

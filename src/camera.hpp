@@ -17,6 +17,9 @@ public:
 	const glm::mat4& getView() const {
 		return glm::lookAt(position, position + front, up);
 	}
+	const glm::mat4 getInvView() const {
+		return glm::inverse(getView());
+	}
 
 	void translate(glm::vec3 offset);
 	void rotate(float yawOffset, float pitchOffset);

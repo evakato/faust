@@ -4,7 +4,9 @@
 #include "pipeline.hpp"
 
 FaustPipeline::FaustPipeline(FaustDevice& device, const std::string& vertShader, const std::string& fragShader) : device{ device }, vertShader{ vertShader }, fragShader{ fragShader }
-{};
+{
+	bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+};
 
 FaustPipeline::~FaustPipeline() {
 	vkDestroyPipeline(device.getDevice(), graphicsPipeline, nullptr);
@@ -172,4 +174,8 @@ void FaustPipeline::enableAlphaBlending(VkPipelineColorBlendAttachmentState& col
 	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
 	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+}
+
+void FaustPipeline::bind(VkCommandBuffer commandBuffer) {
+	vkCmdBindPipeline(commandBuffer, bindPoint, graphicsPipeline);
 }

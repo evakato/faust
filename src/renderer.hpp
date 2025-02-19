@@ -13,12 +13,11 @@ const int MAX_FRAMES_IN_FLIGHT = 2;
 
 struct DrawFrameParams {
 	uint32_t currentFrame;
-	VkPipelineBindPoint bindPoint;
-	VkPipeline pipeline;
 	VkPipelineLayout pipelineLayout;
 	std::vector<VkDescriptorSet> descriptorSets;
 	std::vector<Model*> models;
-	VkPipeline pointLightPipeline;
+	FaustPipeline* pipeline;
+	FaustPipeline* pointLightPipeline;
 };
 
 class FaustRenderer {

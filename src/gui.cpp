@@ -13,8 +13,8 @@ FaustGui::FaustGui(FaustDevice& device) : device{ device } {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	io = &ImGui::GetIO();
-	io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+	//io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	//io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 }
 
 FaustGui::~FaustGui() {
@@ -92,27 +92,34 @@ void FaustGui::viewFileBrowser() {
 }
 
 void FaustGui::mainWindow() {
-	ImGui::Begin("Hello, world!");
-	ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io->Framerate, io->Framerate);
-
 	FaustState& state = FaustState::getInstance();
-	ImGui::Text("Number of tris: %d", state.numTris);
-	ImGui::Text("Filepath: %s", state.modelPath.c_str());
+
+	ImGui::Begin("Faust");
+	ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io->Framerate, io->Framerate);
+	ImGui::Spacing();
+
+	if (ImGui::CollapsingHeader("Camera")) {
+		ImGui::Text("Position: (%.2f, %.2f, %.2f)", state.cameraPos.x, state.cameraPos.y, state.cameraPos.z);
+		ImGui::Text("View direction: (%.2f, %.2f, %.2f)", state.cameraViewDir.x, state.cameraViewDir.y, state.cameraViewDir.z);
+		ImGui::Text("Up direction: (%.2f, %.2f, %.2f)", state.cameraUpDir.x, state.cameraUpDir.y, state.cameraUpDir.z);
+	}
+
+	if (ImGui::CollapsingHeader("Point Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("Position: (%.2f, %.2f, %.2f)", state.pointLightPos.x, state.pointLightPos.y, state.pointLightPos.z);
+		ImGui::ColorEdit4("Pick a color", (float*)&state.pointLightCol);
+	}
+
+	if (ImGui::CollapsingHeader("Model", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("Filepath: %s", state.modelPath.c_str());
+		ImGui::Text("Number of tris: %d", state.numTris);
+		viewFileBrowser();
+	}
+
 	int currentIndex = static_cast<int>(state.shadingSetting);
 
 	if (ImGui::Combo("Shading Mode", &currentIndex, shadingOptions, IM_ARRAYSIZE(shadingOptions))) {
 		state.shadingSetting = static_cast<ShadingSettings>(currentIndex);
 	}
 
-	ImGui::Text("Camera position: (%.2f, %.2f, %.2f)", state.cameraPos.x, state.cameraPos.y, state.cameraPos.z);
-	ImGui::Text("Camera view direction: (%.2f, %.2f, %.2f)", state.cameraViewDir.x, state.cameraViewDir.y, state.cameraViewDir.z);
-	ImGui::Text("Camera up direction: (%.2f, %.2f, %.2f)", state.cameraUpDir.x, state.cameraUpDir.y, state.cameraUpDir.z);
-
-	ImGui::Spacing();
-	ImGui::Text("Point light pos: (%.2f, %.2f, %.2f)", state.pointLightPos.x, state.pointLightPos.y, state.pointLightPos.z);
-	ImVec4 color = ImVec4(state.pointLightCol.x, state.pointLightCol.y, state.pointLightCol.z, 1.0f);
-	ImGui::ColorPicker4("Pick a color", (float*)&color);
-
-	viewFileBrowser();
 	ImGui::End();
 }

@@ -50,4 +50,9 @@ void Camera::updateVectors() {
 	front = glm::normalize(newFront);
 
 	right = glm::normalize(glm::cross(front, up)); // Recalculate right vector
+
+	auto& state = FaustState::getInstance();
+	state.cameraPos = position;
+	state.cameraUpDir = up;
+	state.cameraViewDir = front;
 }

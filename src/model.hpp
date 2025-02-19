@@ -74,6 +74,7 @@ public:
 	int getIndexCount() const { return indices.size(); }
 
 	void setupNewModel(std::string& modelPath);
+	void bind(VkCommandBuffer commandBuffer) const;
 
 private:
 	void loadModel(std::string& modelPath);

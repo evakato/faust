@@ -61,6 +61,11 @@ void Model::loadModel(std::string& modelPath) {
 			indices.push_back(uniqueVertices[vertex]);
 		}
 	}
-	FaustState& state = FaustState::getInstance();
-	state.numTris = indices.size() / 3;
+}
+
+void Model::bind(VkCommandBuffer commandBuffer) const {
+	VkBuffer vertexBuffers[] = { vertexBuffer.getBuffer() };
+	VkDeviceSize offsets[] = { 0 };
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+	vkCmdBindIndexBuffer(commandBuffer, indexBuffer.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 }

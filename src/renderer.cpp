@@ -317,17 +317,14 @@ void FaustRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, params.pipelineLayout, 0, 1, &params.descriptorSets[params.currentFrame], 0, nullptr);
 
-	vkCmdBindPipeline(commandBuffer, params.bindPoint, params.pipeline);
+	params.pipeline->bind(commandBuffer);
 
 	for (const auto model : params.models) {
-		VkBuffer vertexBuffers[] = { model->getVertexBuffer() };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-		vkCmdBindIndexBuffer(commandBuffer, model->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+		model->bind(commandBuffer);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getIndexCount()), 1, 0, 0, 0);
 	}
 
-	vkCmdBindPipeline(commandBuffer, params.bindPoint, params.pointLightPipeline);
+	params.pointLightPipeline->bind(commandBuffer);
 	vkCmdDraw(commandBuffer, 6, 1, 0, 0);
 
 	gui.render(commandBuffer);
