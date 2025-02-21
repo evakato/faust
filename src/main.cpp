@@ -1,8 +1,5 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
@@ -111,12 +108,14 @@ private:
 
 	void mainLoop() {
 		while (!window.shouldClose()) {
-			glfwPollEvents();
+			window.pollEvents();
 
 			while (!renderer.beginFrame(currentFrame)) {};
 
 			auto& state = FaustState::getInstance();
 			state.currentKeyPress = window.detectKeypress();
+			auto mouseMovement = window.detectMouseMovement();
+			camera.rotate(mouseMovement.x, mouseMovement.y);
 
 			switch (state.currentKeyPress) {
 			case KeyPress::CameraLeft:
@@ -208,6 +207,7 @@ private:
 		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // where color of fragment will be determined
 
 		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+
 		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());

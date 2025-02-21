@@ -14,7 +14,10 @@ void FaustWindow::initWindow() {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	window = glfwCreateWindow(width, height, "Vulkan", nullptr, nullptr);
 	glfwSetWindowUserPointer(window, this);
+
 	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+	glfwSetMouseButtonCallback(window, MouseButtonCallback);
+	glfwSetCursorPosCallback(window, CursorPositionCallback);
 }
 
 void FaustWindow::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -59,4 +62,34 @@ KeyPress FaustWindow::detectKeypress() {
 		return KeyPress::CameraViewLeft;
 	}
 	return KeyPress::None;
+}
+
+
+void FaustWindow::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+	FaustWindow* win = static_cast<FaustWindow*>(glfwGetWindowUserPointer(window));
+	if (!win) return;
+
+	if (button == GLFW_MOUSE_BUTTON_LEFT) {
+		win->isDragging = (action == GLFW_PRESS);
+		if (win->isDragging) {
+			double xpos, ypos;
+			glfwGetCursorPos(window, &xpos, &ypos);
+			win->mousePos = glm::vec2(xpos, ypos);
+			win->mouseDelta = glm::vec2(0.0f);
+		}
+	}
+}
+
+void FaustWindow::CursorPositionCallback(GLFWwindow* window, double xpos, double ypos) {
+	FaustWindow* win = static_cast<FaustWindow*>(glfwGetWindowUserPointer(window));
+	if (!win) return;
+
+	if (win->isDragging) {
+		win->mouseDelta = glm::vec2{ xpos - win->mousePos.x, ypos - win->mousePos.y };
+		win->mousePos = glm::vec2{ xpos, ypos }; // Update position to avoid accumulating deltas
+	}
+	else {
+		win->mousePos = glm::vec2{ xpos, ypos };
+		win->mouseDelta = glm::vec2(0.0f); // No movement when not dragging
+	}
 }

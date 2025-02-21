@@ -19,15 +19,29 @@ public:
 	GLFWwindow* getGLFWwindow() const { return window; }
 	bool isMinimized() const { return width == 0 || height == 0; }
 
+	void pollEvents() {
+		mouseDelta = glm::vec2{ 0.0, 0.0 };
+		glfwPollEvents();
+	}
+	glm::vec2 detectMouseMovement() const {
+		return 0.05f * mouseDelta;
+	}
+
 	KeyPress detectKeypress();
 
 private:
-	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 	void initWindow();
+
+	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
+	static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+	static void CursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
 
 	int width;
 	int height;
 	bool framebufferResized = false;
-
 	GLFWwindow* window;
+
+	bool isDragging = false;
+	glm::vec2 mouseDelta{ 0.0 };
+	glm::vec2 mousePos{ 0.0 };
 };

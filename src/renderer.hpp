@@ -35,11 +35,13 @@ private:
 	void createImageViews();
 	void cleanupSwapChain();
 	void createRenderPass();
+	void createRenderPassMSAA();
 	void createFramebuffers();
 	void createCommandBuffers();
 	void createSyncObjects();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, DrawFrameParams& params);
 	void createDepthResources();
+	void createColorResources();
 
 	FaustDevice& device;
 	FaustWindow& window;
@@ -63,4 +65,5 @@ private:
 	VkResult result;
 
 	Image depthImage{ device };
+	Image colorImage{ device };
 };

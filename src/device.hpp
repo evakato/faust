@@ -55,6 +55,12 @@ public:
 	VkQueue getGraphicsQueue() { return graphicsQueue; }
 	VkQueue getPresentQueue() { return presentQueue; }
 	QueueFamilyIndices getIndices() { return physicalDeviceIndices; }
+	VkSampleCountFlagBits getMsaaSamples() const {
+		auto& state = FaustState::getInstance();
+		if (!state.useMsaa)
+			return VK_SAMPLE_COUNT_1_BIT;
+		return msaaSamples;
+	}
 	SwapChainSupportDetails querySwapChainSupport() { return querySwapChainSupport(physicalDevice); }
 
 	static uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice pd) {
@@ -98,4 +104,6 @@ private:
 	VkDevice device;
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;
+
+	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 };

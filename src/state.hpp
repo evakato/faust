@@ -36,10 +36,10 @@ struct FaustState {
 
 	KeyPress currentKeyPress = KeyPress::None;
 
-	ShadingSettings shadingSetting = ShadingSettings::Diffuse;
+	ShadingSettings shadingSetting = ShadingSettings::Textured;
 
-	std::string modelPath = "assets/models/vase.obj";
-	std::string texturePath = "assets/textures/texture.jpg";
+	std::string modelPath = "assets/models/viking_room.obj";
+	std::string texturePath = "assets/textures/viking_room.png";
 	bool modelChanged = false;
 
 	// camera
@@ -56,6 +56,8 @@ struct FaustState {
 	glm::vec4 getPointLightCol() const {
 		return glm::vec4{ pointLightCol.x, pointLightCol.y, pointLightCol.z, pointLightCol.w };
 	}
+
+	bool useMsaa = true;
 
 private:
 	FaustState() {}  // Private constructor to enforce singleton pattern

@@ -53,7 +53,7 @@ void FaustGui::initGui(GLFWwindow* window, VkRenderPass renderPass) {
 	init_info.Subpass = 0;
 	init_info.MinImageCount = 2;
 	init_info.ImageCount = 2;
-	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	init_info.MSAASamples = device.getMsaaSamples();
 	init_info.Allocator = nullptr;
 	init_info.CheckVkResultFn = check_vk_result;
 	ImGui_ImplVulkan_Init(&init_info);
