@@ -3,10 +3,12 @@
 FaustRenderer::FaustRenderer(FaustDevice& device, FaustWindow& window) : device{ device }, window{ window } {
 	createSwapChain();
 	createImageViews();
+
 	if (device.getMsaaSamples() > VK_SAMPLE_COUNT_1_BIT)
 		createRenderPassMSAA();
 	else
 		createRenderPass();
+
 	createColorResources();
 	createDepthResources();
 	createFramebuffers();
@@ -437,6 +439,9 @@ void FaustRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, params.pipelineLayout, 0, 1, &params.descriptorSets[params.currentFrame], 0, nullptr);
+
+	params.cubemapPipeline->bind(commandBuffer);
+	vkCmdDraw(commandBuffer, 36, 1, 0, 0);
 
 	params.pipeline->bind(commandBuffer);
 

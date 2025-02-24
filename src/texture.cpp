@@ -1,7 +1,16 @@
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
 #include "texture.hpp"
+
+ImageSTB loadImageSTB(const std::string& imagePath) {
+	int texWidth, texHeight, texChannels;
+	stbi_uc* pixels = stbi_load(imagePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+	if (!pixels) {
+		throw std::runtime_error("failed to load texture image!");
+	}
+	return { texWidth, texHeight, pixels };
+}
+
+Texture::Texture(FaustDevice& device) : Image(device) {}
 
 Texture::Texture(FaustDevice& device, const std::string& imagePath) : Image(device) {
 	createTextureImage(imagePath);
@@ -13,27 +22,24 @@ Texture::~Texture() {
 	vkDestroySampler(device.getDevice(), textureSampler, nullptr);
 }
 
-void Texture::createTextureSampler() {
+void Texture::createTextureSampler(VkSamplerAddressMode addressMode, VkCompareOp compareOp) {
 	VkSamplerCreateInfo samplerInfo{};
 	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	samplerInfo.magFilter = VK_FILTER_LINEAR; // oversampling
 	samplerInfo.minFilter = VK_FILTER_LINEAR; // undersampling
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeU = addressMode;
+	samplerInfo.addressModeV = addressMode;
+	samplerInfo.addressModeW = addressMode;
 	samplerInfo.anisotropyEnable = VK_TRUE;
 
-	// query for max sampler anisotropy, maybe move to beginning of program during physical device part
-	VkPhysicalDeviceProperties properties{};
-	vkGetPhysicalDeviceProperties(device.getPhysicalDevice(), &properties);
-	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+	samplerInfo.maxAnisotropy = device.getProperties().limits.maxSamplerAnisotropy;
 	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK; // for clamping
 	samplerInfo.unnormalizedCoordinates = VK_FALSE;
 	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	samplerInfo.compareOp = compareOp;
 	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	//samplerInfo.minLod = 0.0f; // Optional
-	samplerInfo.minLod = static_cast<float>(mipLevels / 2);
+	samplerInfo.minLod = 0.0f; // Optional
+	//samplerInfo.minLod = static_cast<float>(mipLevels / 2);
 	samplerInfo.maxLod = static_cast<float>(mipLevels);
 	samplerInfo.mipLodBias = 0.0f; // Optional
 
@@ -43,15 +49,10 @@ void Texture::createTextureSampler() {
 }
 
 void Texture::createTextureImage(const std::string& imagePath) {
+	auto [texWidth, texHeight, pixels] = loadImageSTB(imagePath);
 
-	int texWidth, texHeight, texChannels;
-	stbi_uc* pixels = stbi_load(imagePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 	VkDeviceSize imageSize = texWidth * texHeight * 4;
 	mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-
-	if (!pixels) {
-		throw std::runtime_error("failed to load texture image!");
-	}
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
@@ -66,18 +67,18 @@ void Texture::createTextureImage(const std::string& imagePath) {
 
 	createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mipLevels);
 
-	transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	copyBufferToImage(stagingBuffer, image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+	transitionImageLayout(VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	copyBufferToImage(stagingBuffer, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 
 	// transition to prepare for shader access
-	//transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	//transitionImageLayout(VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	generateMipmaps(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB);
 
 	vkDestroyBuffer(device.getDevice(), stagingBuffer, nullptr);
 	vkFreeMemory(device.getDevice(), stagingBufferMemory, nullptr);
 }
 
-void Texture::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+void Texture::transitionImageLayout(VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t layerCount) {
 	// transition image to be in the right layout
 	VkCommandBuffer commandBuffer = Buffer::beginSingleTimeCommands(device);
 
@@ -90,9 +91,8 @@ void Texture::transitionImageLayout(VkImage image, VkFormat format, VkImageLayou
 	barrier.image = image;
 	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = 1;
 	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
+	barrier.subresourceRange.layerCount = layerCount;
 	barrier.subresourceRange.levelCount = mipLevels;
 
 	VkPipelineStageFlags sourceStage;
@@ -130,7 +130,7 @@ void Texture::transitionImageLayout(VkImage image, VkFormat format, VkImageLayou
 	Buffer::endSingleTimeCommands(device, commandBuffer);
 }
 
-void Texture::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
+void Texture::copyBufferToImage(VkBuffer buffer, uint32_t width, uint32_t height) {
 	VkCommandBuffer commandBuffer = Buffer::beginSingleTimeCommands(device);
 
 	VkBufferImageCopy region{};
@@ -144,11 +144,7 @@ void Texture::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, 
 	region.imageSubresource.layerCount = 1;
 
 	region.imageOffset = { 0, 0, 0 };
-	region.imageExtent = {
-		width,
-		height,
-		1
-	};
+	region.imageExtent = { width, height, 1 };
 
 	vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region); // assume that the image has already been transitioned to an optimal layout for copying pixels to
 

@@ -152,12 +152,15 @@
     <None Include="shaders\basic.frag" />
     <None Include="shaders\basic.vert" />
     <None Include="shaders\compile.bat" />
+    <None Include="shaders\cubemap.frag" />
+    <None Include="shaders\cubemap.vert" />
     <None Include="shaders\point_light.frag" />
     <None Include="shaders\point_light.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\buffer.cpp" />
     <ClCompile Include="src\camera.cpp" />
+    <ClCompile Include="src\cubemap.cpp" />
     <ClCompile Include="src\device.cpp" />
     <ClCompile Include="src\gui.cpp" />
     <ClCompile Include="src\image.cpp" />
@@ -178,6 +181,7 @@
   <ItemGroup>
     <ClInclude Include="src\buffer.hpp" />
     <ClInclude Include="src\camera.hpp" />
+    <ClInclude Include="src\cubemap.hpp" />
     <ClInclude Include="src\device.hpp" />
     <ClInclude Include="src\light.hpp" />
     <ClInclude Include="src\math.hpp" />

@@ -12,6 +12,7 @@
 
 #include "buffer.hpp"
 #include "camera.hpp"
+#include "cubemap.hpp"
 #include "math.hpp"
 #include "model.hpp"
 #include "image.hpp"
@@ -60,6 +61,7 @@ private:
 
 	FaustPipeline pipeline{ device2, "shaders/basic.vert.spv", "shaders/basic.frag.spv" };
 	FaustPipeline pointLightPipeline{ device2, "shaders/point_light.vert.spv", "shaders/point_light.frag.spv" };
+	FaustPipeline cubemapPipeline{ device2, "shaders/cubemap.vert.spv", "shaders/cubemap.frag.spv" };
 
 	Texture texture{ device2, FaustState::getInstance().texturePath };
 	Camera camera{ glm::vec3(0.f, 2.f, 8.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.0f, 1.0f, 0.0f) };
@@ -78,6 +80,8 @@ private:
 	uint32_t currentFrame = 0;
 
 	PointLight pointLight1;
+
+	Cubemap cubemap{ device2, FaustState::getInstance().cubemapPath };
 
 	void initVulkan() {
 		models.push_back(&mainModel);
@@ -98,6 +102,9 @@ private:
 
 		PipelineParams pointLightPipelineParams{ renderPass, pipelineLayout, {}, {} , 1 };
 		pointLightPipeline.createGraphicsPipeline(pointLightPipelineParams);
+
+		PipelineParams cubemapPipelineParams{ renderPass, pipelineLayout, {}, {} , 1 };
+		cubemapPipeline.createGraphicsPipeline(cubemapPipelineParams);
 
 		createUniformBuffers();
 		createDescriptorPool();
@@ -166,6 +173,7 @@ private:
 			params.models = models;
 			params.pipeline = &pipeline;
 			params.pointLightPipeline = &pointLightPipeline;
+			params.cubemapPipeline = &cubemapPipeline;
 			renderer.drawFrame(params);
 		}
 
@@ -206,7 +214,14 @@ private:
 		samplerLayoutBinding.pImmutableSamplers = nullptr;
 		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // where color of fragment will be determined
 
-		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+		VkDescriptorSetLayoutBinding cubemapSamplerLayoutBinding{};
+		cubemapSamplerLayoutBinding.binding = 2;
+		cubemapSamplerLayoutBinding.descriptorCount = 1;
+		cubemapSamplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		cubemapSamplerLayoutBinding.pImmutableSamplers = nullptr;
+		cubemapSamplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, samplerLayoutBinding, cubemapSamplerLayoutBinding };
 
 		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -219,11 +234,13 @@ private:
 	}
 
 	void createDescriptorPool() {
-		std::array<VkDescriptorPoolSize, 2> poolSizes{};
+		std::array<VkDescriptorPoolSize, 3> poolSizes{};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+		poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		poolSizes[2].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
 		VkDescriptorPoolCreateInfo poolInfo{};
 		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -262,7 +279,12 @@ private:
 			imageInfo.imageView = texture.getImageView();
 			imageInfo.sampler = texture.getSampler();
 
-			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+			VkDescriptorImageInfo cubemapInfo{};
+			cubemapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			cubemapInfo.imageView = cubemap.getImageView();
+			cubemapInfo.sampler = cubemap.getSampler();
+
+			std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 
 			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptorWrites[0].dstSet = descriptorSets[i];
@@ -279,6 +301,14 @@ private:
 			descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			descriptorWrites[1].descriptorCount = 1;
 			descriptorWrites[1].pImageInfo = &imageInfo;
+
+			descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites[2].dstSet = descriptorSets[i];
+			descriptorWrites[2].dstBinding = 2;
+			descriptorWrites[2].dstArrayElement = 0;
+			descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			descriptorWrites[2].descriptorCount = 1;
+			descriptorWrites[2].pImageInfo = &cubemapInfo;
 
 			vkUpdateDescriptorSets(device2.getDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 		}

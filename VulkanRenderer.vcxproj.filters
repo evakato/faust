@@ -22,6 +22,8 @@
     </None>
     <None Include="shaders\point_light.vert" />
     <None Include="shaders\point_light.frag" />
+    <None Include="shaders\cubemap.vert" />
+    <None Include="shaders\cubemap.frag" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -78,6 +80,9 @@
     <ClCompile Include="src\camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\cubemap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\window.hpp">
@@ -129,6 +134,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\light.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cubemap.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

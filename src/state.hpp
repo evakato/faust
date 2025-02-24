@@ -40,6 +40,7 @@ struct FaustState {
 
 	std::string modelPath = "assets/models/viking_room.obj";
 	std::string texturePath = "assets/textures/viking_room.png";
+	std::string cubemapPath = "assets/cubemaps/yokohama_night";
 	bool modelChanged = false;
 
 	// camera

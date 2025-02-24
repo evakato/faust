@@ -62,6 +62,7 @@ public:
 		return msaaSamples;
 	}
 	SwapChainSupportDetails querySwapChainSupport() { return querySwapChainSupport(physicalDevice); }
+	VkPhysicalDeviceProperties getProperties() const { return properties; }
 
 	static uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice pd) {
 		VkPhysicalDeviceMemoryProperties memProperties;
@@ -106,4 +107,5 @@ private:
 	VkQueue presentQueue;
 
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+	VkPhysicalDeviceProperties properties{};
 };

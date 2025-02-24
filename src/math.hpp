@@ -5,6 +5,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-constexpr float cameraTranslatePos{ 0.05f };
-constexpr float cameraTranslateNeg{ -0.05f };
-constexpr float cameraPan{ 1.0f };
+constexpr float cameraTranslatePos{ 0.001f };
+constexpr float cameraTranslateNeg{ -0.001f };
+constexpr float cameraPan{ 0.1f };

@@ -190,6 +190,7 @@ void FaustDevice::pickPhysicalDevice() {
 	}
 	physicalDeviceIndices = findQueueFamilies(physicalDevice);
 
+	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
 }
 
 bool FaustDevice::isDeviceSuitable(VkPhysicalDevice pd) {

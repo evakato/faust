@@ -18,6 +18,7 @@ struct DrawFrameParams {
 	std::vector<Model*> models;
 	FaustPipeline* pipeline;
 	FaustPipeline* pointLightPipeline;
+	FaustPipeline* cubemapPipeline;
 };
 
 class FaustRenderer {
