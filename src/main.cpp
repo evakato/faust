@@ -66,7 +66,7 @@ private:
 	Texture texture{ device2, FaustState::getInstance().texturePath };
 	Camera camera{ glm::vec3(0.f, 2.f, 8.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.0f, 1.0f, 0.0f) };
 	Model mainModel{ device2, FaustState::getInstance().modelPath };
-	Model floorModel{ device2, floorPath };
+	//Model floorModel{ device2, floorPath };
 	std::vector<Model*> models;
 
 	VkPipelineLayout pipelineLayout;
@@ -85,7 +85,7 @@ private:
 
 	void initVulkan() {
 		models.push_back(&mainModel);
-		models.push_back(&floorModel);
+		//models.push_back(&floorModel);
 		state.numTris = static_cast<float>(mainModel.getIndexCount()) / 3.0f;
 		state.setPointLightCol(pointLight1.color);
 		state.pointLightPos = pointLight1.position;
@@ -95,16 +95,24 @@ private:
 
 		auto renderPass = renderer.getRenderPass();
 
-		auto bindingDescription = Vertex::getBindingDescription();
-		auto attributeDescriptions = Vertex::getAttributeDescriptions();
-		PipelineParams pipelineParams = { renderPass, pipelineLayout, {bindingDescription}, attributeDescriptions };
-		pipeline.createGraphicsPipeline(pipelineParams);
-
-		PipelineParams pointLightPipelineParams{ renderPass, pipelineLayout, {}, {} , 1 };
-		pointLightPipeline.createGraphicsPipeline(pointLightPipelineParams);
-
-		PipelineParams cubemapPipelineParams{ renderPass, pipelineLayout, {}, {} , 1 };
-		cubemapPipeline.createGraphicsPipeline(cubemapPipelineParams);
+		{
+			auto bindingDescriptions = { Vertex::getBindingDescription() };
+			auto attributeDescriptions = Vertex::getAttributeDescriptions();
+			PipelineCreateInfo createInfo{ bindingDescriptions, attributeDescriptions };
+			pipeline.createGraphicsPipeline(renderPass, pipelineLayout, createInfo);
+		}
+		{
+			PipelineCreateInfo createInfo{ };
+			createInfo.enableAlphaBlending();
+			pointLightPipeline.createGraphicsPipeline(renderPass, pipelineLayout, createInfo);
+		}
+		{
+			PipelineCreateInfo createInfo{ };
+			createInfo.rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
+			createInfo.depthStencil.depthWriteEnable = VK_FALSE;
+			createInfo.depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+			cubemapPipeline.createGraphicsPipeline(renderPass, pipelineLayout, createInfo);
+		}
 
 		createUniformBuffers();
 		createDescriptorPool();

@@ -1,8 +1,4 @@
 ﻿  Press any key to continue . . . 
-  buffer.cpp
-  device.cpp
-  gui.cpp
-  image.cpp
   main.cpp
   GLM_GTX_hash requires C++11 standard library support
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.hpp(74,49): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
@@ -13,7 +9,7 @@ C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\shared\minwindef.h(1
   C:\Users\evaka\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\include\GLFW\glfw3.h(123,1):
   see previous definition of 'APIENTRY'
   
-C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\main.cpp(85,65): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\main.cpp(89,65): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
   model.cpp
   GLM_GTX_hash requires C++11 standard library support
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.hpp(74,49): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
@@ -34,9 +30,6 @@ C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\shared\minwindef.h(1
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\model.hpp(74,49): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file 'src/renderer.cpp')
   
-  texture.cpp
-  window.cpp
   Generating Code...
 C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\VulkanRenderer\src\camera.hpp(18): warning C4172: returning address of local variable or temporary
-LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library
   VulkanRenderer.vcxproj -> C:\Users\evaka\Documents\Visual Studio 2022\Projects\VulkanRenderer\x64\Debug\VulkanRenderer.exe

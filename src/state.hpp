@@ -1,6 +1,7 @@
 #pragma once 
 
 #include "imgui.h"
+#include <vulkan/vulkan.h>
 
 #include "math.hpp"
 
@@ -18,12 +19,13 @@ enum class KeyPress {
 	CameraViewLeft,
 };
 
-static const char* shadingOptions[] = { "Normals", "Textured", "Diffuse", "Specular" };
+static const char* shadingOptions[] = { "Normals", "Textured", "Diffuse", "Specular", "Reflection" };
 enum class ShadingSettings {
 	Normals,
 	Textured,
 	Diffuse,
 	Specular,
+	Reflection
 };
 
 struct FaustState {
@@ -36,11 +38,11 @@ struct FaustState {
 
 	KeyPress currentKeyPress = KeyPress::None;
 
-	ShadingSettings shadingSetting = ShadingSettings::Textured;
+	ShadingSettings shadingSetting = ShadingSettings::Reflection;
 
-	std::string modelPath = "assets/models/viking_room.obj";
+	std::string modelPath = "assets/models/teapot.obj";
 	std::string texturePath = "assets/textures/viking_room.png";
-	std::string cubemapPath = "assets/cubemaps/yokohama_night";
+	std::string cubemapPath = "assets/cubemaps/gamlastan";
 	bool modelChanged = false;
 
 	// camera
@@ -59,6 +61,7 @@ struct FaustState {
 	}
 
 	bool useMsaa = true;
+	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
 private:
 	FaustState() {}  // Private constructor to enforce singleton pattern

@@ -441,7 +441,7 @@ void FaustRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, params.pipelineLayout, 0, 1, &params.descriptorSets[params.currentFrame], 0, nullptr);
 
 	params.cubemapPipeline->bind(commandBuffer);
-	vkCmdDraw(commandBuffer, 36, 1, 0, 0);
+	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
 	params.pipeline->bind(commandBuffer);
 

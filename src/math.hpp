@@ -7,4 +7,4 @@
 
 constexpr float cameraTranslatePos{ 0.001f };
 constexpr float cameraTranslateNeg{ -0.001f };
-constexpr float cameraPan{ 0.1f };
+constexpr float cameraPan{ 0.03f };

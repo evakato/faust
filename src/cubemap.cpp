@@ -3,7 +3,7 @@
 Cubemap::Cubemap(FaustDevice& device, const std::string& imagePath) : Texture{ device } {
 	createCubemapImage(imagePath);
 	createTextureSampler(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_COMPARE_OP_NEVER);
-	createImageView(VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_IMAGE_VIEW_TYPE_CUBE_ARRAY, 6);
+	createImageView(VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_IMAGE_VIEW_TYPE_CUBE, 6);
 }
 
 Cubemap::~Cubemap() {}

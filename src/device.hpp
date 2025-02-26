@@ -24,7 +24,7 @@ const std::vector<const char*> validationLayers = {
 };
 
 const std::vector<const char*> deviceExtensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
 
 struct QueueFamilyIndices {
@@ -57,8 +57,10 @@ public:
 	QueueFamilyIndices getIndices() { return physicalDeviceIndices; }
 	VkSampleCountFlagBits getMsaaSamples() const {
 		auto& state = FaustState::getInstance();
-		if (!state.useMsaa)
+		if (!state.useMsaa) {
 			return VK_SAMPLE_COUNT_1_BIT;
+		}
+		state.msaaSamples = msaaSamples;
 		return msaaSamples;
 	}
 	SwapChainSupportDetails querySwapChainSupport() { return querySwapChainSupport(physicalDevice); }

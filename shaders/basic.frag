@@ -26,9 +26,14 @@ layout(binding = 0) uniform UniformBufferObject {
     PointLight pointLight;
     AmbientLight ambientLight;
 } ubo;
+
 layout(binding = 1) uniform sampler2D texSampler;
+layout(binding = 2) uniform samplerCube skybox;
 
 void main() {
+    vec3 cameraPosWorld = ubo.invView[3].xyz;
+    vec3 viewDir = normalize(cameraPosWorld - fragPos);
+
     switch (int(ubo.directionalLight.w)) {
     case 0:
         outColor = vec4(fragNormal, 1.0);
@@ -38,11 +43,9 @@ void main() {
         break;
     case 2:
     case 3:
+    case 4:
         vec3 ambient = ubo.ambientLight.color.xyz * ubo.ambientLight.color.w;
         vec3 surfaceNormal = normalize(fragNormal);
-
-        vec3 cameraPosWorld = ubo.invView[3].xyz;
-        vec3 viewDir = normalize(cameraPosWorld - fragPos);
 
         vec3 directionToPointLight = ubo.pointLight.position.xyz - fragPos;
         float attenuation = 1.0 / dot(directionToPointLight, directionToPointLight);
@@ -64,7 +67,17 @@ void main() {
 		blinnTerm = pow(blinnTerm, 512.0); // higher values -> sharper highlight
 	    vec3 specularLight = intensity * blinnTerm;
 
-        outColor = vec4(diffuseLight * fragColor + specularLight * fragColor, 1.0);
+        if (int(ubo.directionalLight.w) == 3) {
+			outColor = vec4(diffuseLight * fragColor + specularLight * fragColor, 1.0);
+			break;
+        }
+
+        vec3 reflection = reflect(-viewDir, normalize(fragNormal));
+        vec3 refraction = refract(-viewDir, normalize(fragNormal), 1.00 / 1.52);
+        vec3 envColor = texture(skybox, reflection).rgb;
+
+        outColor = vec4(ambient + diffuseLight * envColor + specularLight, 1.0);
+        outColor = vec4(envColor, 1.0);
         break;
     }
 }
