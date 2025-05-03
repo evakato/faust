@@ -68,9 +68,8 @@
     <ClInclude Include="src\raster_pipeline.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\normal.vert" />
-    <None Include="shaders\normal.frag" />
+    <ClInclude Include="src\compute_pipeline.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

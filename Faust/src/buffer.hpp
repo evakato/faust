@@ -6,7 +6,7 @@ struct Buffer {
 	enum class Type {
 		Scratch,
 		AccelInput,
-		Vertex,
+		AccelInputVertex,
 		AccelInputIndex,
 		AccelStorage,
 		ShaderBindingTable,

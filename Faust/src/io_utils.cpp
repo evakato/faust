@@ -18,9 +18,13 @@ namespace faust {
 			throw std::runtime_error(warn + err);
 		}
 
-		for (const auto& shape : shapes) {
+		std::cout << shapes.size() << std::endl;
+
+		for (size_t shapeIdx = 0; shapeIdx < shapes.size(); shapeIdx++) {
+			const auto& shape = shapes[shapeIdx];
 			for (const auto& index : shape.mesh.indices) {
 				Vertex vertex{};
+				vertex.meshId = shapeIdx;
 				vertex.position[0] = attrib.vertices[3 * index.vertex_index + 0];
 				vertex.position[1] = -attrib.vertices[3 * index.vertex_index + 1];
 				vertex.position[2] = attrib.vertices[3 * index.vertex_index + 2];

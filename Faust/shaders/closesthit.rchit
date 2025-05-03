@@ -16,23 +16,31 @@ layout(set = 0, binding = 5, std140) uniform CameraUBO {
 layout(location = 0) rayPayloadInEXT HitPayload payload;
 hitAttributeEXT vec3 attribs;
 
-struct Vertex
-{
+struct Vertex {
     vec3 position;
+    vec3 normal;
+    uint meshID;
 };
 
-struct Face
-{
+struct Face {
     vec3 diffuse;
     vec3 emission;
 };
 
-Vertex unpackVertex(uint index)
-{
-    uint stride = 3;
+Vertex unpackVertex(uint index) {
+    const uint stride = 12; // 12 floats = 48 bytes
     uint offset = index * stride;
+
     Vertex v;
-    v.position = vec3(vertices[offset +  0], vertices[offset +  1], vertices[offset + 2]);
+    v.position = vec3(vertices[offset + 0], vertices[offset + 1], vertices[offset + 2]);
+    // vertices[offset + 3] is padding
+
+    v.normal = vec3(vertices[offset + 4], vertices[offset + 5], vertices[offset + 6]);
+    // vertices[offset + 7] is padding
+
+    v.meshID = floatBitsToUint(vertices[offset + 8]);
+    // vertices[offset + 9], [10], [11] are padding
+
     return v;
 }
 

@@ -11,12 +11,10 @@ Buffer::Buffer(const Context& context, Type type, vk::DeviceSize size, const voi
 		usage = Usage::eAccelerationStructureBuildInputReadOnlyKHR | Usage::eStorageBuffer | Usage::eShaderDeviceAddress;
 		memoryProps = Memory::eHostVisible | Memory::eHostCoherent;
 		break;
-
-	case Type::Vertex:
-		usage = Usage::eVertexBuffer | Usage::eShaderDeviceAddress;
+	case Type::AccelInputVertex:
+		usage = Usage::eAccelerationStructureBuildInputReadOnlyKHR | Usage::eStorageBuffer | Usage::eShaderDeviceAddress | Usage::eVertexBuffer;
 		memoryProps = Memory::eHostVisible | Memory::eHostCoherent;
 		break;
-
 	case Type::AccelInputIndex:
 		usage = Usage::eIndexBuffer | Usage::eStorageBuffer | Usage::eShaderDeviceAddress | Usage::eAccelerationStructureBuildInputReadOnlyKHR;
 		memoryProps = Memory::eHostVisible | Memory::eHostCoherent;

@@ -19,6 +19,7 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include "image.hpp"
 #include "accel.hpp"
 #include "raster_pipeline.hpp"
+#include "compute_pipeline.hpp"
 
 int main() {
 	Context context;
@@ -60,19 +61,11 @@ int main() {
 	std::vector<uint32_t> indices;
 	std::vector<Face> faces;
 	faust::loadFromFile(vertices, indices, faces);
-	std::vector<VertexRasterization> rasterVertices;
-	rasterVertices.reserve(vertices.size());
-	for (const auto& v : vertices) {
-		VertexRasterization vr;
-		std::copy(std::begin(v.position), std::end(v.position), vr.position);
-		rasterVertices.push_back(vr);
-	}
-	faust::computeNormals(rasterVertices, indices);
+	faust::computeNormals(vertices, indices);
 
-	Buffer vertexBuffer{ context, Buffer::Type::AccelInput, sizeof(Vertex) * vertices.size(), vertices.data() };
+	Buffer vertexBuffer{ context, Buffer::Type::AccelInputVertex, sizeof(Vertex) * vertices.size(), vertices.data() };
 	Buffer indexBuffer{ context, Buffer::Type::AccelInputIndex, sizeof(uint32_t) * indices.size(), indices.data() };
 	Buffer faceBuffer{ context, Buffer::Type::AccelInput, sizeof(Face) * faces.size(), faces.data() };
-	Buffer rasterVertexBuffer{ context, Buffer::Type::Vertex, sizeof(VertexRasterization) * rasterVertices.size(), rasterVertices.data() };
 
 	// Create bottom level accel struct
 	vk::AccelerationStructureGeometryTrianglesDataKHR triangleData;
@@ -226,36 +219,77 @@ int main() {
 	context.device->updateDescriptorSets(writes, nullptr);
 
 	// rasterization stuff
-	Image gbufferNormalImage{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR16G16B16A16Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal };
-
-	Image gbufferDepthImage{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eD32Sfloat, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eDepth, vk::ImageLayout::eDepthStencilAttachmentOptimal
+	std::array<Image, 2> normalImages = {
+		Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR16G16B16A16Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal },
+		Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR16G16B16A16Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal }
 	};
-	std::array<vk::ImageView, 2> attachments = { *gbufferNormalImage.view, *gbufferDepthImage.view };
+
+	Image gbufferMotionImage{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR16G16Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal };
+
+	std::array<Image, 2> meshIdImages = {
+		Image { context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR32Uint, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal },
+		Image { context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR32Uint, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal }
+	};
+
+	std::array<Image, 2> depthImages = {
+	Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eD32Sfloat,
+		   vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eDepth, vk::ImageLayout::eDepthStencilAttachmentOptimal },
+	Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eD32Sfloat,
+		   vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eDepth, vk::ImageLayout::eDepthStencilAttachmentOptimal }
+	};
+	depthImages[0].createSampler(*context.device);
+	depthImages[1].createSampler(*context.device);
+
+	Image filterOutputImage{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm,
+		vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral };
+
+
+	/*
+	Image gbufferMotionImageB{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR32G32Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal };
+	gbufferMotionImageA.updateDescInfo();
+	gbufferMotionImageB.updateDescInfo();
+	*/
+
+	std::vector<vk::ImageView> attachments = { *normalImages[0].view, *gbufferMotionImage.view, *meshIdImages[0].view, *depthImages[0].view };
 
 	RasterPipeline gbufferPipeline;
 	gbufferPipeline.create(context, attachments, cameraBuffer);
+	gbufferPipeline.updateDescriptorSet(*context.device, cameraBuffer, gbufferMotionImage);
 	vk::RenderPass gbufferRenderPass = gbufferPipeline.renderPass;
 	vk::Framebuffer gbufferFramebuffer = gbufferPipeline.framebuffer;
-	vk::Pipeline gbufferRasterPipeline = gbufferPipeline.pipeline;
+
+	ComputePipeline filterPipeline{ context };
 
 	// Main loop
 	uint32_t imageIndex = 0;
 	int frame = 0;
 	vk::UniqueSemaphore imageAcquiredSemaphore = context.device->createSemaphoreUnique(vk::SemaphoreCreateInfo());
+	float factor = 1.0f;
+	int totalFrames = 0;
 	while (!glfwWindowShouldClose(context.window)) {
 		glfwPollEvents();
 
-		if (frame % 50 == 0) {
-			//camera.translate(glm::vec3{ 0.f, 0.f, -0.2f });
-			camera.rotate(-0.1f, 0.0f);
-			CameraData cameraubo{};
-			cameraubo.prevProj = cameraubo.proj;
-			cameraubo.prevView = cameraubo.view;
-			cameraubo.proj = camera.getProjection();
-			cameraubo.view = camera.getView();
-			memcpy(cameraBuffer.mapped, &cameraubo, sizeof(CameraData));
-			frame = 0;
-		}
+		Image& currentNormalWrite = (totalFrames % 2 == 0) ? normalImages[0] : normalImages[1];
+		Image& currentDepthWrite = (totalFrames % 2 == 0) ? depthImages[0] : depthImages[1];
+		Image& currentMeshIdWrite = (totalFrames % 2 == 0) ? meshIdImages[0] : meshIdImages[1];
+
+		std::vector<vk::ImageView> attachments = {
+			*currentNormalWrite.view,
+			*gbufferMotionImage.view,
+			*currentMeshIdWrite.view,
+			*currentDepthWrite.view };
+		gbufferPipeline.createFramebuffer(*context.device, attachments);
+
+		//camera.rotate(-0.1f, 0.0f);
+		if (totalFrames % 20 == 0) factor *= -1.f;
+		CameraData cameraubo{};
+		cameraubo.prevProj = camera.getProjection();
+		cameraubo.prevView = camera.getView();
+		camera.translate(glm::vec3{ 0.f, factor * 0.1f, 0.f });
+		cameraubo.proj = camera.getProjection();
+		cameraubo.view = camera.getView();
+		memcpy(cameraBuffer.mapped, &cameraubo, sizeof(CameraData));
+		frame = 0;
 
 		// Acquire next image
 		imageIndex = context.device->acquireNextImageKHR(*swapchain, UINT64_MAX, *imageAcquiredSemaphore).value;
@@ -265,6 +299,12 @@ int main() {
 		commandBuffer.begin(vk::CommandBufferBeginInfo());
 
 		// Rasterization
+		if (totalFrames > 1) {
+
+			//currentNormalWrite.transitionImageLayout(commandBuffer, vk::Format::eR16G16B16A16Sfloat, vk::ImageLayout::eGeneral, vk::ImageLayout::eColorAttachmentOptimal, 1, 1);
+			//gbufferPipeline.updateDescriptorSet(*context.device, cameraBuffer, previousMotion);
+		}
+
 		vk::RenderPassBeginInfo renderPassBeginInfo;
 		renderPassBeginInfo.renderPass = gbufferPipeline.renderPass;
 		renderPassBeginInfo.framebuffer = gbufferPipeline.framebuffer;
@@ -277,7 +317,7 @@ int main() {
 		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, gbufferPipeline.pipeline);
 		vk::DeviceSize offsets[] = { 0 };
 		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *(gbufferPipeline.pipelineLayout), 0, *(gbufferPipeline.descriptorSet), nullptr);
-		commandBuffer.bindVertexBuffers(0, 1, &rasterVertexBuffer.buffer.get(), offsets);
+		commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer.buffer.get(), offsets);
 		commandBuffer.bindIndexBuffer(indexBuffer.buffer.get(), 0, vk::IndexType::eUint32);
 		commandBuffer.drawIndexed(indices.size(), 1, 0, 0, 0);
 		commandBuffer.endRenderPass();
@@ -296,6 +336,21 @@ int main() {
 		Image::setImageLayout(commandBuffer, srcImage, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral);
 		Image::setImageLayout(commandBuffer, dstImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR);
 
+		currentNormalWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eGeneral, 1, 1);
+		currentMeshIdWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eGeneral, 1, 1);
+		currentDepthWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 1, 1);
+
+		std::vector<vk::DescriptorImageInfo> filterInputs = {
+			currentNormalWrite.descImageInfo,
+			currentMeshIdWrite.descImageInfo,
+			currentDepthWrite.descImageInfo,
+			filterOutputImage.descImageInfo };
+
+		filterPipeline.updateDescriptorSet(*context.device, filterInputs);
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, filterPipeline.pipeline);
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, filterPipeline.layout, 0, *(filterPipeline.descriptorSet), {});
+		commandBuffer.dispatch((faust::WIDTH + 7) / 8, (faust::HEIGHT + 7) / 8, 1);
+
 		commandBuffer.end();
 
 		// Submit
@@ -311,7 +366,8 @@ int main() {
 			throw std::runtime_error("failed to present.");
 		}
 		context.queue.waitIdle();
-		frame++;
+		//frame++;
+		totalFrames++;
 	}
 
 	context.device->waitIdle();

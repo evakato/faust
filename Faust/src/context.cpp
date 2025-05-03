@@ -72,7 +72,7 @@ Context::Context() {
 	std::vector<const char*> requiredExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 		VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-		//VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+		VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
 		VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
 		VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
 		VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
@@ -166,15 +166,14 @@ Context::Context() {
 	// Create descriptor pool
 	std::vector<vk::DescriptorPoolSize> poolSizes{
 		{vk::DescriptorType::eAccelerationStructureKHR, 1},
-		{vk::DescriptorType::eStorageImage, 1},
+		{vk::DescriptorType::eStorageImage, 5},
 		{vk::DescriptorType::eStorageBuffer, 3},
 		{vk::DescriptorType::eUniformBuffer, 2},
-		{vk::DescriptorType::eCombinedImageSampler, 1}
 	};
 
 	vk::DescriptorPoolCreateInfo descPoolInfo;
 	descPoolInfo.setPoolSizes(poolSizes);
-	descPoolInfo.setMaxSets(2);
+	descPoolInfo.setMaxSets(faust::MAX_DESC_SETS);
 	descPoolInfo.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
 	descPool = device->createDescriptorPoolUnique(descPoolInfo);
 }

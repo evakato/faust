@@ -32,16 +32,13 @@
     <ClInclude Include="src\accel.hpp" />
     <ClInclude Include="src\buffer.hpp" />
     <ClInclude Include="src\camera.hpp" />
+    <ClInclude Include="src\compute_pipeline.hpp" />
     <ClInclude Include="src\constants.hpp" />
     <ClInclude Include="src\context.hpp" />
     <ClInclude Include="src\image.hpp" />
     <ClInclude Include="src\io_utils.hpp" />
     <ClInclude Include="src\model.hpp" />
     <ClInclude Include="src\raster_pipeline.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\normal.frag" />
-    <None Include="shaders\normal.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -141,6 +138,9 @@
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <PreBuildEvent>
+      <Command>cd /d "$(ProjectDir)shaders" &amp;&amp; call compile.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -164,6 +164,9 @@
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <PreBuildEvent>
+      <Command>cd /d "$(ProjectDir)shaders" &amp;&amp; call compile.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

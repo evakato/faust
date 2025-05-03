@@ -1,6 +1,6 @@
 #include "image.hpp"
 
-Image::Image(const Context& context, vk::Extent2D extent, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlagBits aspectFlag, vk::ImageLayout outImageLayout) {
+Image::Image(const Context& context, vk::Extent2D extent, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlagBits aspectFlag, vk::ImageLayout outImageLayout) : format(format) {
 	// Create image
 	vk::ImageCreateInfo imageInfo;
 	imageInfo.setImageType(vk::ImageType::e2D);
@@ -32,10 +32,32 @@ Image::Image(const Context& context, vk::Extent2D extent, vk::Format format, vk:
 
 	// Set image info
 	descImageInfo.setImageView(*view);
-	descImageInfo.setImageLayout(vk::ImageLayout::eGeneral);
+	descImageInfo.setImageLayout(outImageLayout);
 	context.oneTimeSubmit([&](vk::CommandBuffer commandBuffer) {  //
 		setImageLayout(commandBuffer, *image, vk::ImageLayout::eUndefined, outImageLayout, aspectFlag);
 		});
+}
+
+void Image::createSampler(vk::Device device) {
+	vk::SamplerCreateInfo samplerInfo{};
+	samplerInfo.magFilter = vk::Filter::eLinear;
+	samplerInfo.minFilter = vk::Filter::eLinear;
+	samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
+	samplerInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
+	samplerInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
+	samplerInfo.anisotropyEnable = VK_FALSE;
+	samplerInfo.borderColor = vk::BorderColor::eFloatOpaqueBlack;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+	sampler = device.createSampler(samplerInfo);
+	descImageInfo.setSampler(sampler);
+}
+
+void Image::updateDescInfo() {
+	descImageInfo.setSampler(sampler);
+	descImageInfo.setImageView(*view);
+	descImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
 vk::AccessFlags Image::toAccessFlags(vk::ImageLayout layout) {
