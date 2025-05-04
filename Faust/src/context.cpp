@@ -166,9 +166,10 @@ Context::Context() {
 	// Create descriptor pool
 	std::vector<vk::DescriptorPoolSize> poolSizes{
 		{vk::DescriptorType::eAccelerationStructureKHR, 1},
-		{vk::DescriptorType::eStorageImage, 5},
+		{vk::DescriptorType::eStorageImage, 8},
 		{vk::DescriptorType::eStorageBuffer, 3},
 		{vk::DescriptorType::eUniformBuffer, 2},
+		{vk::DescriptorType::eSampler, 2},
 	};
 
 	vk::DescriptorPoolCreateInfo descPoolInfo;

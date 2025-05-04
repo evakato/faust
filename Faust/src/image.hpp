@@ -18,6 +18,12 @@ struct Image {
 	vk::Sampler sampler;
 	vk::Format format;
 
+	void updateDescriptor() {
+		descImageInfo.setSampler(sampler);
+		descImageInfo.setImageView(*view);
+		descImageInfo.setImageLayout(vk::ImageLayout::eGeneral);
+	}
+
 	void setDescImageLayout(vk::ImageLayout imageLayout) {
 		descImageInfo.setImageLayout(imageLayout);
 	}
@@ -71,6 +77,17 @@ struct Image {
 			srcStage = vk::PipelineStageFlagBits::eTopOfPipe;
 			dstStage = vk::PipelineStageFlagBits::eTransfer;
 		}
+		else if (oldLayout == vk::ImageLayout::eGeneral &&
+			newLayout == vk::ImageLayout::eTransferDstOptimal)
+		{
+			srcAccessMask = vk::AccessFlagBits::eShaderRead |
+				vk::AccessFlagBits::eShaderWrite |
+				vk::AccessFlagBits::eTransferRead |
+				vk::AccessFlagBits::eTransferWrite;
+			dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+			srcStage = vk::PipelineStageFlagBits::eTransfer;
+			dstStage = vk::PipelineStageFlagBits::eTransfer;
+		}
 		else if (oldLayout == vk::ImageLayout::eTransferDstOptimal &&
 			newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
 			srcAccessMask = vk::AccessFlagBits::eTransferWrite;
@@ -106,6 +123,13 @@ struct Image {
 			dstAccessMask = vk::AccessFlagBits::eShaderWrite;
 			srcStage = vk::PipelineStageFlagBits::eFragmentShader; // or eComputeShader, depending on usage
 			dstStage = vk::PipelineStageFlagBits::eComputeShader;
+		}
+		else if (oldLayout == vk::ImageLayout::eGeneral &&
+			newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+			srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+			dstAccessMask = vk::AccessFlagBits::eShaderRead;
+			srcStage = vk::PipelineStageFlagBits::eComputeShader;
+			dstStage = vk::PipelineStageFlagBits::eFragmentShader; // or eComputeShader, depending on usage
 		}
 		else if (oldLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal &&
 			newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
