@@ -40,6 +40,9 @@
     <ClInclude Include="src\model.hpp" />
     <ClInclude Include="src\raster_pipeline.hpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\atrous.comp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

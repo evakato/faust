@@ -13,6 +13,7 @@ layout(set = 0, binding = 0, std140) uniform CameraUBO {
 
 layout(location = 0) out vec3 fragNormal; 
 layout(location = 1) flat out uint fragMeshId; 
+layout(location = 2) out vec3 fragWorldPos;
 
 void main() {
     mat4 modelMatrix = mat4(1.0);
@@ -22,4 +23,5 @@ void main() {
     vec3 normalWorldSpace = normalize((transpose(inverse(modelMatrix)) * vec4(inNormal, 0.0)).xyz);
     fragNormal = normalWorldSpace;
     fragMeshId = inMeshId;
+    fragWorldPos = worldPos.xyz;
 }

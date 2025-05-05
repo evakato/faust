@@ -219,6 +219,16 @@ int main() {
 		Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR16G16B16A16Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal },
 		Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR16G16B16A16Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal }
 	};
+	std::array<Image, 2> depthImages = {
+	Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eD32Sfloat,
+		   vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eDepth, vk::ImageLayout::eDepthStencilAttachmentOptimal },
+	Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eD32Sfloat,
+		   vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eDepth, vk::ImageLayout::eDepthStencilAttachmentOptimal }
+	};
+	normalImages[0].descImageInfo.setImageLayout(vk::ImageLayout::eGeneral);
+	normalImages[1].descImageInfo.setImageLayout(vk::ImageLayout::eGeneral);
+	depthImages[0].descImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+	depthImages[1].descImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 
 	Image gbufferMotionImage{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR16G16Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal };
 
@@ -227,17 +237,21 @@ int main() {
 		Image { context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR32Uint, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal }
 	};
 
-	std::array<Image, 2> depthImages = {
-	Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eD32Sfloat,
-		   vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eDepth, vk::ImageLayout::eDepthStencilAttachmentOptimal },
-	Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eD32Sfloat,
-		   vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eDepth, vk::ImageLayout::eDepthStencilAttachmentOptimal }
-	};
 	depthImages[0].createSampler(*context.device);
 	depthImages[1].createSampler(*context.device);
 
 	std::array<Image, 2> filterOutputImages = { Image { context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
 		Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
+
+	std::array<Image, 2> atrousFilterImages = { Image { context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
+		Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
+
+	std::array<Image, 2> moment2Images = { Image { context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR16G16B16A16Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
+		Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR16G16B16A16Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
+
+	Image varianceImage = Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR16G16B16A16Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral };
+
+	Image finalOutputImage = Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral };
 
 	std::vector<vk::ImageView> attachments = { *normalImages[0].view, *gbufferMotionImage.view, *meshIdImages[0].view, *depthImages[0].view };
 
@@ -247,7 +261,12 @@ int main() {
 	vk::RenderPass gbufferRenderPass = gbufferPipeline.renderPass;
 	vk::Framebuffer gbufferFramebuffer = gbufferPipeline.framebuffer;
 
-	ComputePipeline filterPipeline{ context };
+	const std::string temporalShaderFilename = "C:\\Users\\evaka\\Documents\\Visual Studio 2022\\Projects\\Faust\\Faust\\shaders\\filter.comp.spv";
+
+	const std::string spatialShaderFilename = "C:\\Users\\evaka\\Documents\\Visual Studio 2022\\Projects\\Faust\\Faust\\shaders\\atrous.comp.spv";
+	ComputePipeline temporalPipeline{ context, temporalShaderFilename, temporalAccumulationBindings };
+
+	ComputePipeline spatialPipeline{ context, spatialShaderFilename, spatialFilterBindings, 2 };
 
 	// Main loop
 	uint32_t imageIndex = 0;
@@ -255,6 +274,7 @@ int main() {
 	vk::UniqueSemaphore imageAcquiredSemaphore = context.device->createSemaphoreUnique(vk::SemaphoreCreateInfo());
 	float factor = 1.0f;
 	int totalFrames = 0;
+
 	while (!glfwWindowShouldClose(context.window)) {
 		glfwPollEvents();
 
@@ -270,6 +290,27 @@ int main() {
 		currentFilteredImage.updateDescriptor();
 		prevFilteredImage.updateDescriptor();
 
+		Image& currMoment2 = (totalFrames % 2 == 0) ? moment2Images[0] : moment2Images[1];
+		Image& prevMoment2 = (totalFrames % 2 == 0) ? moment2Images[1] : moment2Images[0];
+
+		// TODO: clean this up
+		std::vector<vk::DescriptorImageInfo> spatialFilterInputs = {
+			currentNormalWrite.descImageInfo,
+			currentDepthWrite.descImageInfo,
+			atrousFilterImages[0].descImageInfo,
+			varianceImage.descImageInfo,
+			atrousFilterImages[1].descImageInfo
+		};
+		spatialPipeline.updateDescriptorSet(*context.device, spatialFilterInputs, 0);
+		std::vector<vk::DescriptorImageInfo> spatialFilterInputs2 = {
+			currentNormalWrite.descImageInfo,
+			currentDepthWrite.descImageInfo,
+			atrousFilterImages[1].descImageInfo,
+			varianceImage.descImageInfo,
+			atrousFilterImages[0].descImageInfo
+		};
+		spatialPipeline.updateDescriptorSet(*context.device, spatialFilterInputs2, 1);
+
 		std::vector<vk::ImageView> attachments = {
 			*currentNormalWrite.view,
 			*gbufferMotionImage.view,
@@ -282,11 +323,15 @@ int main() {
 		CameraData cameraubo{};
 		cameraubo.prevProj = camera.getProjection();
 		cameraubo.prevView = camera.getView();
-		camera.translate(glm::vec3{ 0.f, factor * 0.1f, 0.f });
+
+		if (totalFrames % 5 == 0) {
+			camera.translate(glm::vec3{ 0.f, factor * 0.1f, 0.f });
+			frame = 0;
+		}
+
 		cameraubo.proj = camera.getProjection();
 		cameraubo.view = camera.getView();
 		memcpy(cameraBuffer.mapped, &cameraubo, sizeof(CameraData));
-		//frame = 0;
 
 		// Acquire next image
 		imageIndex = context.device->acquireNextImageKHR(*swapchain, UINT64_MAX, *imageAcquiredSemaphore).value;
@@ -319,70 +364,72 @@ int main() {
 		commandBuffer.pushConstants(*pipelineLayout, vk::ShaderStageFlagBits::eRaygenKHR, 0, sizeof(int), &frame);
 		commandBuffer.traceRaysKHR(raygenRegion, missRegion, hitRegion, {}, faust::WIDTH, faust::HEIGHT, 1);
 
-
-		if (totalFrames > 0) {
-			currentNormalWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eGeneral, 1, 1);
-			currentMeshIdWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eGeneral, 1, 1);
-			currentDepthWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 1, 1);
-
-			prevNormalImage.setDescImageLayout(vk::ImageLayout::eGeneral);
-			prevMeshIdImage.setDescImageLayout(vk::ImageLayout::eGeneral);
-			prevDepthImage.setDescImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
-
-			gbufferMotionImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eGeneral, 1, 1);
-
-			std::vector<vk::DescriptorImageInfo> filterInputs = {
-				currentNormalWrite.descImageInfo,
-				currentMeshIdWrite.descImageInfo,
-				currentDepthWrite.descImageInfo,
-				prevNormalImage.descImageInfo,
-				prevMeshIdImage.descImageInfo,
-				prevDepthImage.descImageInfo,
-				gbufferMotionImage.descImageInfo,
-				rtOutputImage.descImageInfo,
-				prevFilteredImage.descImageInfo,
-				currentFilteredImage.descImageInfo
-			};
-			filterPipeline.updateDescriptorSet(*context.device, filterInputs);
-
-			// compute shader dispatch
-			commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, filterPipeline.pipeline);
-			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, filterPipeline.layout, 0, *(filterPipeline.descriptorSet), {});
-			commandBuffer.dispatch((faust::WIDTH + 7) / 8, (faust::HEIGHT + 7) / 8, 1);
-
-			// Prepare filterOutputImage for copy to swapchain
-			vk::Image swapchainImage = swapchainImages[imageIndex];
-			vk::Image srcFilteredImage = *currentFilteredImage.image;
-			Image::setImageLayout(commandBuffer, srcFilteredImage, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
-			Image::setImageLayout(commandBuffer, swapchainImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-
-			Image::copyImage(commandBuffer, srcFilteredImage, swapchainImage);
-
-			Image::setImageLayout(commandBuffer, srcFilteredImage, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral);
-			Image::setImageLayout(commandBuffer, swapchainImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR);
-
+		if (totalFrames == 0) {
+			prevNormalImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::eGeneral, 1, 1);
+			prevMeshIdImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::eGeneral, 1, 1);
+			prevDepthImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 1, 1);
 		}
-		else {
-			currentNormalWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eGeneral, 1, 1);
-			currentMeshIdWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eGeneral, 1, 1);
-			currentDepthWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 1, 1);
 
-			vk::Image srcImage = *rtOutputImage.image;
-			vk::Image dstImage = swapchainImages[imageIndex];
-			Image::setImageLayout(commandBuffer, srcImage, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
-			Image::setImageLayout(commandBuffer, dstImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-			Image::copyImage(commandBuffer, srcImage, dstImage);
+		currentMeshIdWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eGeneral, 1, 1);
+		currentDepthWrite.transitionImageLayout(commandBuffer, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, 1, 1);
 
-			vk::Image dstFilter = *currentFilteredImage.image;
-			Image::setImageLayout(commandBuffer, dstFilter,
-				vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferDstOptimal);
-			Image::copyImage(commandBuffer, srcImage, dstFilter);
-			Image::setImageLayout(commandBuffer, dstFilter,
-				vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral);
+		prevNormalImage.setDescImageLayout(vk::ImageLayout::eGeneral);
+		prevMeshIdImage.setDescImageLayout(vk::ImageLayout::eGeneral);
+		prevDepthImage.setDescImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 
-			Image::setImageLayout(commandBuffer, srcImage, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral);
-			Image::setImageLayout(commandBuffer, dstImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR);
-		}
+		gbufferMotionImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eGeneral, 1, 1);
+
+		// -- Temporal filtering and variance compute shader --
+		std::vector<vk::DescriptorImageInfo> filterInputs = {
+			currentNormalWrite.descImageInfo,
+			currentMeshIdWrite.descImageInfo,
+			currentDepthWrite.descImageInfo,
+			prevNormalImage.descImageInfo,
+			prevMeshIdImage.descImageInfo,
+			prevDepthImage.descImageInfo,
+			gbufferMotionImage.descImageInfo,
+			rtOutputImage.descImageInfo,
+			prevFilteredImage.descImageInfo,
+			currentFilteredImage.descImageInfo,
+			prevMoment2.descImageInfo,
+			currMoment2.descImageInfo,
+			varianceImage.descImageInfo
+		};
+		temporalPipeline.updateDescriptorSet(*context.device, filterInputs);
+
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, temporalPipeline.pipeline);
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, temporalPipeline.layout, 0, *(temporalPipeline.descriptorSets[0]), {});
+		commandBuffer.pushConstants(temporalPipeline.layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(int), &totalFrames);
+		commandBuffer.dispatch((faust::WIDTH + 7) / 8, (faust::HEIGHT + 7) / 8, 1);
+
+		vk::Image srcTemporalImage = *currentFilteredImage.image;
+		Image::setImageLayout(commandBuffer, srcTemporalImage, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
+		Image::setImageLayout(commandBuffer, *atrousFilterImages[0].image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+
+		Image::copyImage(commandBuffer, srcTemporalImage, *atrousFilterImages[0].image);
+
+		Image::setImageLayout(commandBuffer, srcTemporalImage, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral);
+		Image::setImageLayout(commandBuffer, *atrousFilterImages[0].image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral);
+
+		// -- WAVELET TRANSFORM --
+		int iteration = 1;
+		int stepWidth = 1 << (iteration - 1);
+		commandBuffer.pushConstants(spatialPipeline.layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(int), &stepWidth);
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, spatialPipeline.pipeline);
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, spatialPipeline.layout, 0, *(spatialPipeline.descriptorSets[0]), {});
+		commandBuffer.dispatch((faust::WIDTH + 7) / 8, (faust::HEIGHT + 7) / 8, 1);
+
+		// Prepare filterOutputImage for copy to swapchain
+		vk::Image srcFilteredImage = *atrousFilterImages[1].image;
+		vk::Image swapchainImage = swapchainImages[imageIndex];
+		Image::setImageLayout(commandBuffer, srcFilteredImage, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
+		Image::setImageLayout(commandBuffer, swapchainImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+
+		Image::copyImage(commandBuffer, srcFilteredImage, swapchainImage);
+
+		Image::setImageLayout(commandBuffer, srcFilteredImage, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral);
+		Image::setImageLayout(commandBuffer, swapchainImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR);
+
 		commandBuffer.end();
 
 		// Submit
@@ -398,7 +445,8 @@ int main() {
 			throw std::runtime_error("failed to present.");
 		}
 		context.queue.waitIdle();
-		//frame++;
+		frame++;
+
 		totalFrames++;
 	}
 

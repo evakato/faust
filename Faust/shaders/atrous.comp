@@ -1,0 +1,65 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(binding = 0, rgba32f) uniform readonly image2D normals;
+layout(set = 0, binding = 1) uniform sampler2D depths;
+layout(binding = 2, rgba8) uniform readonly image2D colors;
+layout(binding = 3, rgba16f) uniform readonly image2D variances;
+layout(binding = 4, rgba8) writeonly uniform image2D finalOutImage;
+
+const float c_phi = 4.0;     // Color weight sensitivity
+const float n_phi = 128.0;   // Normal weight sensitivity
+const float z_phi = 1.0;     // Depth weight sensitivity
+const float v_phi = 1.0;     // Variance weight sensitivity
+
+const int kernel[5] = int[](0, 1, 2, 1, 0); // à-trous wavelet kernel weights
+
+layout(push_constant) uniform PushConstants {
+    int stepWidth;
+} pushConstants;
+
+void main() {
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 imageSize = imageSize(colors);
+
+    vec3 c_center = imageLoad(colors, coord).rgb;
+    vec3 n_center = imageLoad(normals, coord).rgb;
+    float z_center = texelFetch(depths, coord, 0).r;
+    float v_center = imageLoad(variances, coord).r;
+
+    float sum_weights = 0.0;
+    vec3 accum_color = vec3(0.0);
+
+    int stepWidth = pushConstants.stepWidth;
+
+    for (int dy = -2; dy <= 2; ++dy) {
+        for (int dx = -2; dx <= 2; ++dx) {
+            ivec2 offset = ivec2(dx, dy) * stepWidth;
+            ivec2 sampleCoord = coord + offset;
+
+            if (any(lessThan(sampleCoord, ivec2(0))) || any(greaterThanEqual(sampleCoord, imageSize)))
+                continue;
+
+            float kernelWeight = float(kernel[abs(dx)] * kernel[abs(dy)]);
+
+            vec3 c_sample = imageLoad(colors, sampleCoord).rgb;
+            vec3 n_sample = imageLoad(normals, sampleCoord).rgb;
+            float z_sample = texelFetch(depths, sampleCoord, 0).r;
+            float v_sample = imageLoad(variances, sampleCoord).r;
+
+            // Edge-aware weights
+            float w_color = exp(-dot(c_center - c_sample, c_center - c_sample) / c_phi);
+            float w_normal = exp(-max(0.0, 1.0 - dot(n_center, n_sample)) * n_phi);
+            float w_depth = exp(-abs(z_center - z_sample) / z_phi);
+            float w_var = exp(-abs(v_center - v_sample) / v_phi);
+
+            float weight = kernelWeight * w_color * w_normal * w_depth * w_var;
+
+            accum_color += c_sample * weight;
+            sum_weights += weight;
+        }
+    }
+
+    vec3 result = accum_color / max(sum_weights, 1e-5);
+    imageStore(finalOutImage, coord, vec4(result, 1.0));
+}

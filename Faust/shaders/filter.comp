@@ -11,8 +11,19 @@ layout(set = 0, binding = 5) uniform sampler2D prevDepths;
 
 layout(binding = 6, rg32f) uniform readonly image2D motionVectors;
 layout(binding = 7, rgba8)   uniform readonly image2D luminance;
+
 layout(binding = 8, rgba8)   uniform readonly image2D colorHistory;
-layout(binding = 9, rgba8)   uniform writeonly image2D outImage;
+layout(binding = 9, rgba8)   uniform writeonly image2D updatedColorHistory;
+
+layout(binding = 10, rgba16f)   uniform readonly image2D moment2History;
+layout(binding = 11, rgba16f)   uniform writeonly image2D updatedMoment2;
+
+layout(binding = 12, rgba16f)   uniform writeonly image2D varianceImage;
+
+layout(push_constant) uniform PushConstants {
+    uint frameIndex;
+};
+
 
 bool isConsistent(vec3 currNormal, float currDepth, uint currId,
                   vec3 prevNormal, float prevDepth, uint prevId) {
@@ -21,66 +32,93 @@ bool isConsistent(vec3 currNormal, float currDepth, uint currId,
     return (normalDot > 0.95) && (depthDiff < 0.01) && (currId == prevId);
 }
 
-vec4 bilinearSampleWithConsistency(
-    vec2 prevCoord,
-    vec3 currNormal,
-    float currDepth,
-    uint currMeshId,
-    ivec2 imageSize
-) {
-    ivec2 base = ivec2(floor(prevCoord));
-    vec2 f = fract(prevCoord); // interpolation weights
+vec4 safeFetch(ivec2 c, ivec2 imageSize, vec3 currNormal, float currDepth, uint currId, out bool valid, out vec4 prevMoment2) {
+    prevMoment2 = vec4(0.0);
 
-    vec4 accum = vec4(0.0);
-    float totalWeight = 0.0;
+    if (all(greaterThanEqual(c, ivec2(0))) && all(lessThan(c, imageSize))) {
+		vec3 prevNormal = imageLoad(prevNormals, c).xyz;
+		float prevDepth = texelFetch(prevDepths, c, 0).r;
+		uint prevId = imageLoad(prevMeshIds, c).r;
 
-    for (int dy = 0; dy <= 1; ++dy) {
-        for (int dx = 0; dx <= 1; ++dx) {
-            ivec2 offset = base + ivec2(dx, dy);
-            if (any(lessThan(offset, ivec2(0))) || any(greaterThanEqual(offset, imageSize)))
-                continue;
-
-            vec3 prevNormal = imageLoad(prevNormals, offset).xyz;
-            float prevDepth = texelFetch(prevDepths, offset, 0).r;
-            uint prevId = imageLoad(prevMeshIds, offset).r;
-
-            if (true || isConsistent(currNormal, currDepth, currMeshId, prevNormal, prevDepth, prevId)) {
-                float w = ((dx == 0) ? (1.0 - f.x) : f.x) *
-                          ((dy == 0) ? (1.0 - f.y) : f.y);
-
-                vec4 color = imageLoad(colorHistory, offset); // historical color
-                accum += color * w;
-                totalWeight += w;
-            }
+        if (isConsistent(currNormal, currDepth, currId, prevNormal, prevDepth, prevId)) {
+			valid = true;
+            prevMoment2 = imageLoad(moment2History, c);
+			return imageLoad(colorHistory, c);
         }
-    }
-
-    if (totalWeight > 0.0)
-        return accum / totalWeight;
-    else
-        return vec4(0); // Or fallback: current frame value
+    } 
+	valid = false;
+	return vec4(0.0);
 }
 
+vec4 bilinearTap(vec2 coord, ivec2 imageSize, vec3 currNormal, float currDepth, uint currId, out vec4 weightedM) {
+    vec2 base = floor(coord);
+    vec2 frac = coord - base;
+    ivec2 baseCoord = ivec2(base);
+
+    bool v00, v10, v01, v11;
+    vec4 m00, m10, m01, m11;
+    vec4 c00 = safeFetch(baseCoord + ivec2(0, 0), imageSize, currNormal, currDepth, currId, v00, m00);
+    vec4 c10 = safeFetch(baseCoord + ivec2(1, 0), imageSize, currNormal, currDepth, currId, v10, m10);
+    vec4 c01 = safeFetch(baseCoord + ivec2(0, 1), imageSize, currNormal, currDepth, currId, v01, m01);
+    vec4 c11 = safeFetch(baseCoord + ivec2(1, 1), imageSize, currNormal, currDepth, currId, v11, m11);
+
+    float w00 = (1.0 - frac.x) * (1.0 - frac.y);
+    float w10 = (frac.x)       * (1.0 - frac.y);
+    float w01 = (1.0 - frac.x) * (frac.y);
+    float w11 = (frac.x)       * (frac.y);
+
+    vec4 accumColor = vec4(0.0);
+    vec4 accumM     = vec4(0.0);
+    float totalWeight = 0.0;
+
+    if (v00) { accumColor += c00 * w00; accumM += m00 * w00; totalWeight += w00; }
+    if (v10) { accumColor += c10 * w10; accumM += m10 * w10; totalWeight += w10; }
+    if (v01) { accumColor += c01 * w01; accumM += m01 * w01; totalWeight += w01; }
+    if (v11) { accumColor += c11 * w11; accumM += m11 * w11; totalWeight += w11; }
+
+    if (totalWeight > 0.0) {
+        weightedM = accumM / totalWeight;
+        return accumColor / totalWeight;
+    } else {
+        weightedM = vec4(0.0);
+        return vec4(0.0);
+    }
+}
 
 void main() {
     ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
     ivec2 imageSize = imageSize(luminance);
-    vec2 motionVec = imageLoad(motionVectors, coord).rg;
-    vec2 prevCoord = vec2(coord) - motionVec * vec2(imageSize);
-
-    vec3 currNormal = imageLoad(currNormals, coord).xyz;
-    float currDepth = texelFetch(currDepths, coord, 0).r;
-    uint currMeshId = imageLoad(currMeshIds, coord).r;
-
-    // sanity check is it workign?
-    //uint currMeshId2 = imageLoad(prevMeshIds, coord).r;
-    //float currDepth2 = texelFetch(prevDepths, coord, 0).r;
-    //vec3 currNormal2 = imageLoad(prevNormals, coord).xyz;
-
-    vec4 filtered = bilinearSampleWithConsistency(prevCoord, currNormal, currDepth, currMeshId, imageSize);
     vec4 currColor = imageLoad(luminance, coord);
-    float alpha = 0.2;
-    vec4 integratedColor = (length(filtered) > 0.0) ? mix(currColor, filtered, alpha) : currColor;
 
-    imageStore(outImage, coord, integratedColor);
+    if (frameIndex == 0) 
+    {
+		imageStore(updatedColorHistory, coord, currColor);
+		imageStore(updatedMoment2, coord, currColor * currColor);
+        vec4 variance = max(currColor - currColor * currColor, vec4(0.0));
+		imageStore(varianceImage, coord, variance);
+    } else {
+
+		vec2 motionVec = imageLoad(motionVectors, coord).rg;
+		vec2 prevCoordF = vec2(coord) - motionVec * vec2(imageSize); // in pixel space
+
+		vec3 currNormal = imageLoad(currNormals, coord).xyz;
+		float currDepth = texelFetch(currDepths, coord, 0).r;
+		uint currMeshId = imageLoad(currMeshIds, coord).r;
+
+		vec4 prevMoment2;
+		vec4 prevColor = bilinearTap(prevCoordF, imageSize, currNormal, currDepth, currMeshId, prevMoment2);
+
+		float alpha = 0.8;
+		vec4 integratedColor = mix(currColor, prevColor, alpha);
+		if (length(prevColor) == 0.0) integratedColor = currColor;
+
+		vec4 integratedMoment2 = mix(currColor * currColor, prevMoment2, alpha);
+		if (length(prevMoment2) == 0.0) integratedMoment2 = currColor * currColor;
+
+        vec4 variance = max(integratedMoment2 - integratedColor * integratedColor, vec4(0.0));
+
+		imageStore(updatedColorHistory, coord, integratedColor);
+		imageStore(updatedMoment2, coord, integratedMoment2);
+		imageStore(varianceImage, coord, variance);
+    }
 }

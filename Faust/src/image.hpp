@@ -5,6 +5,7 @@
 struct Image {
 	Image() = default;
 	Image(const Context& context, vk::Extent2D extent, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlagBits aspectFlag = vk::ImageAspectFlagBits::eColor, vk::ImageLayout outImageLayout = vk::ImageLayout::eGeneral);
+
 	static vk::AccessFlags toAccessFlags(vk::ImageLayout layout);
 	static void setImageLayout(vk::CommandBuffer commandBuffer, vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, vk::ImageAspectFlagBits aspectFlag = vk::ImageAspectFlagBits::eColor);
 	static void copyImage(vk::CommandBuffer commandBuffer, vk::Image srcImage, vk::Image dstImage);
@@ -76,6 +77,33 @@ struct Image {
 			dstAccessMask = vk::AccessFlagBits::eTransferWrite;
 			srcStage = vk::PipelineStageFlagBits::eTopOfPipe;
 			dstStage = vk::PipelineStageFlagBits::eTransfer;
+		}
+		else if (oldLayout == vk::ImageLayout::eGeneral &&
+			newLayout == vk::ImageLayout::eColorAttachmentOptimal) {
+
+			srcAccessMask = vk::AccessFlagBits::eShaderWrite | vk::AccessFlagBits::eShaderRead;
+			dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
+			srcStage = vk::PipelineStageFlagBits::eComputeShader;
+			dstStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+		}
+		else if (oldLayout == vk::ImageLayout::eGeneral &&
+			newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal) {
+
+			srcAccessMask = vk::AccessFlagBits::eShaderWrite | vk::AccessFlagBits::eShaderRead;
+			dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+
+			srcStage = vk::PipelineStageFlagBits::eComputeShader;
+			dstStage = vk::PipelineStageFlagBits::eEarlyFragmentTests; // or LateFragmentTests
+		}
+		else if (oldLayout == vk::ImageLayout::eColorAttachmentOptimal &&
+			newLayout == vk::ImageLayout::eGeneral) {
+
+			srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+			dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
+
+			srcStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+			dstStage = vk::PipelineStageFlagBits::eComputeShader;
 		}
 		else if (oldLayout == vk::ImageLayout::eGeneral &&
 			newLayout == vk::ImageLayout::eTransferDstOptimal)

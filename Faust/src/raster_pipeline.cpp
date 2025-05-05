@@ -22,7 +22,7 @@ void RasterPipeline::create(Context& context, std::vector<vk::ImageView> attachm
 	colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
 	colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
 	colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
-	colorAttachment.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+	colorAttachment.finalLayout = vk::ImageLayout::eGeneral;
 
 	vk::AttachmentDescription motionAttachment = {};
 	motionAttachment.format = vk::Format::eR16G16Sfloat;
