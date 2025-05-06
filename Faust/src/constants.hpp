@@ -8,5 +8,5 @@
 namespace faust {
 	constexpr int WIDTH = 1024;
 	constexpr int HEIGHT = 1024;
-	constexpr int MAX_DESC_SETS = 5;
+	constexpr int MAX_DESC_SETS = 6;
 }

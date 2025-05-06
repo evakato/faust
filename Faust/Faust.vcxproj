@@ -35,6 +35,7 @@
     <ClInclude Include="src\compute_pipeline.hpp" />
     <ClInclude Include="src\constants.hpp" />
     <ClInclude Include="src\context.hpp" />
+    <ClInclude Include="src\fullscreen_pipeline.hpp" />
     <ClInclude Include="src\image.hpp" />
     <ClInclude Include="src\io_utils.hpp" />
     <ClInclude Include="src\model.hpp" />
@@ -42,6 +43,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\atrous.comp" />
+    <None Include="shaders\fullscreen.frag" />
+    <None Include="shaders\fullscreen.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

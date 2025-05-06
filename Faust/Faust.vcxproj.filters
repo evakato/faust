@@ -71,8 +71,13 @@
     <ClInclude Include="src\compute_pipeline.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\fullscreen_pipeline.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\atrous.comp" />
+    <None Include="shaders\fullscreen.vert" />
+    <None Include="shaders\fullscreen.frag" />
   </ItemGroup>
 </Project>

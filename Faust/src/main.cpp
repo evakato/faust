@@ -20,6 +20,7 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include "accel.hpp"
 #include "raster_pipeline.hpp"
 #include "compute_pipeline.hpp"
+#include "fullscreen_pipeline.hpp"
 
 int main() {
 	Context context;
@@ -36,7 +37,10 @@ int main() {
 	swapchainInfo.setImageColorSpace(vk::ColorSpaceKHR::eSrgbNonlinear);
 	swapchainInfo.setImageExtent({ faust::WIDTH, faust::HEIGHT });
 	swapchainInfo.setImageArrayLayers(1);
-	swapchainInfo.setImageUsage(vk::ImageUsageFlagBits::eTransferDst);
+	swapchainInfo.setImageUsage(
+		vk::ImageUsageFlagBits::eColorAttachment |
+		vk::ImageUsageFlagBits::eTransferDst
+	);
 	swapchainInfo.setPreTransform(vk::SurfaceTransformFlagBitsKHR::eIdentity);
 	swapchainInfo.setPresentMode(vk::PresentModeKHR::eFifo);
 	swapchainInfo.setClipped(true);
@@ -45,12 +49,29 @@ int main() {
 
 	std::vector<vk::Image> swapchainImages = context.device->getSwapchainImagesKHR(*swapchain);
 
+	std::vector<vk::UniqueImageView> swapchainImageViews;
+	swapchainImageViews.reserve(swapchainImages.size());
+
+	for (vk::Image image : swapchainImages) {
+		vk::ImageViewCreateInfo viewInfo{};
+		viewInfo.image = image;
+		viewInfo.viewType = vk::ImageViewType::e2D;
+		viewInfo.format = vk::Format::eB8G8R8A8Unorm;
+		viewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+		viewInfo.subresourceRange.baseMipLevel = 0;
+		viewInfo.subresourceRange.levelCount = 1;
+		viewInfo.subresourceRange.baseArrayLayer = 0;
+		viewInfo.subresourceRange.layerCount = 1;
+
+		swapchainImageViews.push_back(context.device->createImageViewUnique(viewInfo));
+	}
+
 	vk::CommandBufferAllocateInfo commandBufferInfo;
 	commandBufferInfo.setCommandPool(*context.commandPool);
 	commandBufferInfo.setCommandBufferCount(static_cast<uint32_t>(swapchainImages.size()));
 	std::vector<vk::UniqueCommandBuffer> commandBuffers = context.device->allocateCommandBuffersUnique(commandBufferInfo);
 
-	Image rtOutputImage = Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled };
+	Image rtOutputImage = Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR16G16B16A16Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled };
 
 	// Load mesh
 	std::vector<Vertex> vertices;
@@ -240,18 +261,19 @@ int main() {
 	depthImages[0].createSampler(*context.device);
 	depthImages[1].createSampler(*context.device);
 
-	std::array<Image, 2> filterOutputImages = { Image { context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
-		Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
+	std::array<Image, 2> filterOutputImages = { Image { context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
+		Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
 
-	std::array<Image, 2> atrousFilterImages = { Image { context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
-		Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
+	std::array<Image, 2> atrousFilterImages = { Image { context, {faust::WIDTH, faust::HEIGHT},vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
+		Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
+	atrousFilterImages[1].createSampler(*context.device);
 
-	std::array<Image, 2> moment2Images = { Image { context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR16G16B16A16Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
-		Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR16G16B16A16Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
+	std::array<Image, 2> momentImages = { Image { context, {faust::WIDTH, faust::HEIGHT},  vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
+		Image{ context, {faust::WIDTH, faust::HEIGHT},vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
 
-	Image varianceImage = Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR16G16B16A16Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral };
+	std::array<Image, 2> varianceImages = { Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral }, Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
 
-	Image finalOutputImage = Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eB8G8R8A8Unorm, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral };
+	Image finalOutputImage = Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral };
 
 	std::vector<vk::ImageView> attachments = { *normalImages[0].view, *gbufferMotionImage.view, *meshIdImages[0].view, *depthImages[0].view };
 
@@ -260,6 +282,12 @@ int main() {
 	gbufferPipeline.updateDescriptorSet(*context.device, cameraBuffer, gbufferMotionImage);
 	vk::RenderPass gbufferRenderPass = gbufferPipeline.renderPass;
 	vk::Framebuffer gbufferFramebuffer = gbufferPipeline.framebuffer;
+
+	FullscreenPresentPipeline presentPipeline;
+	presentPipeline.create(context, swapchainImageViews);
+	presentPipeline.updateDescriptorSet(*context.device, atrousFilterImages[1]);
+	vk::RenderPass presentRenderPass = gbufferPipeline.renderPass;
+	vk::Framebuffer presentFramebuffer = gbufferPipeline.framebuffer;
 
 	const std::string temporalShaderFilename = "C:\\Users\\evaka\\Documents\\Visual Studio 2022\\Projects\\Faust\\Faust\\shaders\\filter.comp.spv";
 
@@ -290,15 +318,16 @@ int main() {
 		currentFilteredImage.updateDescriptor();
 		prevFilteredImage.updateDescriptor();
 
-		Image& currMoment2 = (totalFrames % 2 == 0) ? moment2Images[0] : moment2Images[1];
-		Image& prevMoment2 = (totalFrames % 2 == 0) ? moment2Images[1] : moment2Images[0];
+		Image& currMoment = (totalFrames % 2 == 0) ? momentImages[0] : momentImages[1];
+		Image& prevMoment = (totalFrames % 2 == 0) ? momentImages[1] : momentImages[0];
 
 		// TODO: clean this up
 		std::vector<vk::DescriptorImageInfo> spatialFilterInputs = {
 			currentNormalWrite.descImageInfo,
 			currentDepthWrite.descImageInfo,
 			atrousFilterImages[0].descImageInfo,
-			varianceImage.descImageInfo,
+			varianceImages[0].descImageInfo,
+			varianceImages[1].descImageInfo,
 			atrousFilterImages[1].descImageInfo
 		};
 		spatialPipeline.updateDescriptorSet(*context.device, spatialFilterInputs, 0);
@@ -306,7 +335,8 @@ int main() {
 			currentNormalWrite.descImageInfo,
 			currentDepthWrite.descImageInfo,
 			atrousFilterImages[1].descImageInfo,
-			varianceImage.descImageInfo,
+			varianceImages[1].descImageInfo,
+			varianceImages[0].descImageInfo,
 			atrousFilterImages[0].descImageInfo
 		};
 		spatialPipeline.updateDescriptorSet(*context.device, spatialFilterInputs2, 1);
@@ -391,9 +421,9 @@ int main() {
 			rtOutputImage.descImageInfo,
 			prevFilteredImage.descImageInfo,
 			currentFilteredImage.descImageInfo,
-			prevMoment2.descImageInfo,
-			currMoment2.descImageInfo,
-			varianceImage.descImageInfo
+			prevMoment.descImageInfo,
+			currMoment.descImageInfo,
+			varianceImages[0].descImageInfo
 		};
 		temporalPipeline.updateDescriptorSet(*context.device, filterInputs);
 
@@ -412,22 +442,42 @@ int main() {
 		Image::setImageLayout(commandBuffer, *atrousFilterImages[0].image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral);
 
 		// -- WAVELET TRANSFORM --
-		int iteration = 1;
-		int stepWidth = 1 << (iteration - 1);
-		commandBuffer.pushConstants(spatialPipeline.layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(int), &stepWidth);
-		commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, spatialPipeline.pipeline);
-		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, spatialPipeline.layout, 0, *(spatialPipeline.descriptorSets[0]), {});
-		commandBuffer.dispatch((faust::WIDTH + 7) / 8, (faust::HEIGHT + 7) / 8, 1);
+		for (int iteration = 1; iteration <= 5; iteration++) {
+			int descSetIndex = (iteration % 2 == 1) ? 0 : 1;
+			int stepWidth = 1 << (iteration - 1);
+			commandBuffer.pushConstants(spatialPipeline.layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(int), &stepWidth);
+			commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, spatialPipeline.pipeline);
+			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, spatialPipeline.layout, 0, *(spatialPipeline.descriptorSets[descSetIndex]), {});
+			commandBuffer.dispatch((faust::WIDTH + 7) / 8, (faust::HEIGHT + 7) / 8, 1);
+			if (iteration == 1) {
+				vk::Image colorHistSrc = *atrousFilterImages[0].image;
+				vk::Image colorHistDest = *currentFilteredImage.image;
+				Image::setImageLayout(commandBuffer, colorHistSrc, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
+				Image::setImageLayout(commandBuffer, colorHistDest, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferDstOptimal);
+				Image::copyImage(commandBuffer, colorHistSrc, colorHistDest);
+				Image::setImageLayout(commandBuffer, colorHistSrc, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral);
+				Image::setImageLayout(commandBuffer, colorHistDest, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral);
+
+			}
+		}
+
+		vk::RenderPassBeginInfo presentRenderPassBeginInfo;
+		presentRenderPassBeginInfo.renderPass = presentPipeline.renderPass;
+		presentRenderPassBeginInfo.framebuffer = *presentPipeline.framebuffers[imageIndex];
+		presentRenderPassBeginInfo.renderArea.offset = vk::Offset2D{ 0, 0 };
+		presentRenderPassBeginInfo.renderArea.extent = vk::Extent2D{ faust::WIDTH, faust::HEIGHT };
+		presentRenderPassBeginInfo.clearValueCount = (uint32_t)FullscreenPresentPipeline::clearValues.size();
+		presentRenderPassBeginInfo.pClearValues = FullscreenPresentPipeline::clearValues.data();
+
+		commandBuffer.beginRenderPass(presentRenderPassBeginInfo, vk::SubpassContents::eInline);
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, presentPipeline.pipeline);
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, presentPipeline.pipelineLayout, 0, *(presentPipeline.descriptorSet), nullptr);
+		commandBuffer.draw(3, 1, 0, 0);
+		commandBuffer.endRenderPass();
 
 		// Prepare filterOutputImage for copy to swapchain
-		vk::Image srcFilteredImage = *atrousFilterImages[1].image;
 		vk::Image swapchainImage = swapchainImages[imageIndex];
-		Image::setImageLayout(commandBuffer, srcFilteredImage, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
 		Image::setImageLayout(commandBuffer, swapchainImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-
-		Image::copyImage(commandBuffer, srcFilteredImage, swapchainImage);
-
-		Image::setImageLayout(commandBuffer, srcFilteredImage, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral);
 		Image::setImageLayout(commandBuffer, swapchainImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR);
 
 		commandBuffer.end();

@@ -3,20 +3,42 @@ layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(binding = 0, rgba32f) uniform readonly image2D normals;
 layout(set = 0, binding = 1) uniform sampler2D depths;
-layout(binding = 2, rgba8) uniform readonly image2D colors;
-layout(binding = 3, rgba16f) uniform readonly image2D variances;
-layout(binding = 4, rgba8) writeonly uniform image2D finalOutImage;
+layout(binding = 2, rgba32f) uniform readonly image2D colors;
+layout(binding = 3, r32f) uniform readonly image2D varianceIn;
+layout(binding = 4, r32f) writeonly uniform image2D varianceOut;
+layout(binding = 5, rgba32f) writeonly uniform image2D outputImage;
 
-const float c_phi = 4.0;     // Color weight sensitivity
-const float n_phi = 128.0;   // Normal weight sensitivity
-const float z_phi = 1.0;     // Depth weight sensitivity
-const float v_phi = 1.0;     // Variance weight sensitivity
+const float c_phi = 4.0;
+const float n_phi = 128.0;
+const float z_phi = 1.0;
 
-const int kernel[5] = int[](0, 1, 2, 1, 0); // à-trous wavelet kernel weights
+const int kernel[5] = int[](1, 4, 6, 4, 1); // Symmetric 5x5 kernel for h(q)
 
 layout(push_constant) uniform PushConstants {
     int stepWidth;
 } pushConstants;
+
+// Gaussian 3x3 for prefiltering temporal variance (used only in w_l)
+const float varianceKernel[3][3] = float[3][3](
+    float[3](1.0, 2.0, 1.0),
+    float[3](2.0, 4.0, 2.0),
+    float[3](1.0, 2.0, 1.0)
+);
+const float varianceKernelWeight = 16.0;
+
+float getPrefilteredVariance(ivec2 coord, ivec2 imageSize) {
+    float blurred = 0.0;
+    for (int dy = -1; dy <= 1; ++dy) {
+        for (int dx = -1; dx <= 1; ++dx) {
+            ivec2 offset = ivec2(dx, dy);
+            ivec2 sampleCoord = clamp(coord + offset, ivec2(0), imageSize - 1);
+            float sampleVar = imageLoad(varianceIn, sampleCoord).r;
+            float weight = varianceKernel[dy + 1][dx + 1];
+            blurred += sampleVar * weight;
+        }
+    }
+    return blurred / varianceKernelWeight;
+}
 
 void main() {
     ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
@@ -25,41 +47,63 @@ void main() {
     vec3 c_center = imageLoad(colors, coord).rgb;
     vec3 n_center = imageLoad(normals, coord).rgb;
     float z_center = texelFetch(depths, coord, 0).r;
-    float v_center = imageLoad(variances, coord).r;
+    float v_center = imageLoad(varianceIn, coord).r;
+
+    float lum_center = dot(c_center, vec3(0.2126, 0.7152, 0.0722));
+    float filteredVar = getPrefilteredVariance(coord, imageSize);
+
+    int stepWidth = pushConstants.stepWidth;
+
+    float z_right = texelFetch(depths, coord + ivec2(stepWidth, 0), 0).r;
+    float z_down  = texelFetch(depths, coord + ivec2(0, stepWidth), 0).r;
+    vec2 z_grad = vec2(z_right - z_center, z_down - z_center);
 
     float sum_weights = 0.0;
     vec3 accum_color = vec3(0.0);
 
-    int stepWidth = pushConstants.stepWidth;
+    float sum_var_weights = 0.0;
+    float accum_var = 0.0;
 
     for (int dy = -2; dy <= 2; ++dy) {
         for (int dx = -2; dx <= 2; ++dx) {
             ivec2 offset = ivec2(dx, dy) * stepWidth;
             ivec2 sampleCoord = coord + offset;
-
             if (any(lessThan(sampleCoord, ivec2(0))) || any(greaterThanEqual(sampleCoord, imageSize)))
                 continue;
 
-            float kernelWeight = float(kernel[abs(dx)] * kernel[abs(dy)]);
+            float h = float(kernel[abs(dx)]) * float(kernel[abs(dy)]);
 
             vec3 c_sample = imageLoad(colors, sampleCoord).rgb;
             vec3 n_sample = imageLoad(normals, sampleCoord).rgb;
             float z_sample = texelFetch(depths, sampleCoord, 0).r;
-            float v_sample = imageLoad(variances, sampleCoord).r;
+            float v_sample = imageLoad(varianceIn, sampleCoord).r;
 
-            // Edge-aware weights
-            float w_color = exp(-dot(c_center - c_sample, c_center - c_sample) / c_phi);
-            float w_normal = exp(-max(0.0, 1.0 - dot(n_center, n_sample)) * n_phi);
-            float w_depth = exp(-abs(z_center - z_sample) / z_phi);
-            float w_var = exp(-abs(v_center - v_sample) / v_phi);
+            float lum_sample = dot(c_sample, vec3(0.2126, 0.7152, 0.0722));
 
-            float weight = kernelWeight * w_color * w_normal * w_depth * w_var;
+            float lum_diff = clamp(abs(lum_center - lum_sample), 0.0, 0.7);
+            float lum_denom = c_phi * sqrt(max(filteredVar, 1e-4));
+            float w_lum = exp(-lum_diff / lum_denom);
 
-            accum_color += c_sample * weight;
-            sum_weights += weight;
+            float w_norm = pow(max(0.0, dot(n_center, n_sample)), n_phi);
+
+            vec2 delta = vec2(offset);
+            float denom = z_phi * (abs(dot(z_grad, delta)) + 1e-2);
+            float w_depth = exp(-abs(z_center - z_sample) / denom);
+
+            float w = h * w_lum * w_norm * w_depth;
+
+            accum_color += c_sample * w;
+            sum_weights += w;
+
+            accum_var += h * h * w * w * v_sample;
+            sum_var_weights += h * w * w;
         }
     }
 
     vec3 result = accum_color / max(sum_weights, 1e-5);
-    imageStore(finalOutImage, coord, vec4(result, 1.0));
+    imageStore(outputImage, coord, vec4(result, 1.0));
+
+    // Optional filtered variance from Equation 3
+    float updatedVar = accum_var / max(sum_var_weights, 1e-5);
+    imageStore(varianceOut, coord, vec4(updatedVar, 0.0, 0.0, 1.0));
 }
