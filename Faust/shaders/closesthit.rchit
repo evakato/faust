@@ -25,7 +25,12 @@ struct Vertex {
 struct Face {
     vec3 diffuse;
     vec3 emission;
+    vec3 specular;
+    float roughness;
+    float ior;
+    float type; // 0 = diffuse, 1 = mirror, 2 = dielectric
 };
+
 
 Vertex unpackVertex(uint index) {
     const uint stride = 12; // 12 floats = 48 bytes
@@ -46,19 +51,17 @@ Vertex unpackVertex(uint index) {
 
 Face unpackFace(uint index)
 {
-    uint stride = 6;
+    uint stride = 12; // total floats per face
     uint offset = index * stride;
-    Face f;
-    f.diffuse = vec3(faces[offset +  0], faces[offset +  1], faces[offset + 2]);
-    f.emission = vec3(faces[offset +  3], faces[offset +  4], faces[offset + 5]);
-    return f;
-}
 
-vec3 calcNormal(Vertex v0, Vertex v1, Vertex v2)
-{
-    vec3 e01 = v1.position - v0.position;
-    vec3 e02 = v2.position - v0.position;
-    return -normalize(cross(e01, e02));
+    Face f;
+    f.diffuse  = vec3(faces[offset +  0], faces[offset + 1], faces[offset + 2]);
+    f.emission = vec3(faces[offset +  3], faces[offset + 4], faces[offset + 5]);
+    f.specular = vec3(faces[offset +  6], faces[offset + 7], faces[offset + 8]);
+    f.roughness = faces[offset + 9];
+    f.ior       = faces[offset + 10];
+    f.type      = faces[offset + 11];
+    return f;
 }
 
 void main()
@@ -69,22 +72,28 @@ void main()
 
     const vec3 barycentricCoords = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
     const vec3 position = v0.position * barycentricCoords.x + v1.position * barycentricCoords.y + v2.position * barycentricCoords.z;
-    const vec3 normal = calcNormal(v0, v1, v2);
+    const vec3 normal = normalize(v0.normal * barycentricCoords.x +
+              v1.normal * barycentricCoords.y +
+              v2.normal * barycentricCoords.z);
 
     const Face face = unpackFace(gl_PrimitiveID);
+
     payload.brdf = face.diffuse / M_PI;
     payload.emission = face.emission * 2.0;
     payload.position = position;
     payload.normal = normal;
 
-    vec4 currentClip = cam.proj * cam.view * vec4(payload.position, 1.0);
-	currentClip /= currentClip.w;
+    payload.materialType = int(face.type);
+    payload.roughness = face.roughness;
+    payload.ior = face.ior;
+    payload.specular = face.specular;
 
-	vec4 previousClip = cam.prevProj * cam.prevView * vec4(payload.position, 1.0);
-	previousClip /= previousClip.w;
-
-	vec2 currentScreen = currentClip.xy * 0.5 + 0.5;
-	vec2 previousScreen = previousClip.xy * 0.5 + 0.5;
-
-	payload.motion = previousScreen - currentScreen;
+    if (face.type == 0) {
+        // Diffuse
+        payload.brdf = face.diffuse / M_PI;
+    } else if (face.type == 1) {
+        // Mirror — pure specular handled in ray continuation
+    } else if (face.type == 2) {
+        // Dielectric — BRDF not evaluated here
+    }
 }

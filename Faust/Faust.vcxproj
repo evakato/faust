@@ -19,10 +19,18 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\vendors\imgui\backends\imgui_impl_glfw.cpp" />
+    <ClCompile Include="..\vendors\imgui\backends\imgui_impl_vulkan.cpp" />
+    <ClCompile Include="..\vendors\imgui\imgui.cpp" />
+    <ClCompile Include="..\vendors\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\vendors\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\vendors\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\vendors\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\accel.cpp" />
     <ClCompile Include="src\buffer.cpp" />
     <ClCompile Include="src\camera.cpp" />
     <ClCompile Include="src\context.cpp" />
+    <ClCompile Include="src\gui.cpp" />
     <ClCompile Include="src\image.cpp" />
     <ClCompile Include="src\io_utils.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -36,6 +44,8 @@
     <ClInclude Include="src\constants.hpp" />
     <ClInclude Include="src\context.hpp" />
     <ClInclude Include="src\fullscreen_pipeline.hpp" />
+    <ClInclude Include="src\gbuffer_set.hpp" />
+    <ClInclude Include="src\gui.hpp" />
     <ClInclude Include="src\image.hpp" />
     <ClInclude Include="src\io_utils.hpp" />
     <ClInclude Include="src\model.hpp" />

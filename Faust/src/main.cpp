@@ -21,6 +21,8 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include "raster_pipeline.hpp"
 #include "compute_pipeline.hpp"
 #include "fullscreen_pipeline.hpp"
+#include "gui.hpp"
+#include "gbuffer_set.hpp"
 
 int main() {
 	Context context;
@@ -72,13 +74,14 @@ int main() {
 	std::vector<vk::UniqueCommandBuffer> commandBuffers = context.device->allocateCommandBuffersUnique(commandBufferInfo);
 
 	Image rtOutputImage = Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR16G16B16A16Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled };
+	rtOutputImage.createSampler(*context.device);
 
 	// Load mesh
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
 	std::vector<Face> faces;
 	faust::loadFromFile(vertices, indices, faces);
-	faust::computeNormals(vertices, indices);
+	//faust::computeNormals(vertices, indices);
 
 	Buffer vertexBuffer{ context, Buffer::Type::AccelInputVertex, sizeof(Vertex) * vertices.size(), vertices.data() };
 	Buffer indexBuffer{ context, Buffer::Type::AccelInputIndex, sizeof(uint32_t) * indices.size(), indices.data() };
@@ -236,6 +239,7 @@ int main() {
 	context.device->updateDescriptorSets(writes, nullptr);
 
 	// rasterization stuff
+	/*
 	std::array<Image, 2> normalImages = {
 		Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR16G16B16A16Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal },
 		Image{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR16G16B16A16Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal }
@@ -250,6 +254,10 @@ int main() {
 	normalImages[1].descImageInfo.setImageLayout(vk::ImageLayout::eGeneral);
 	depthImages[0].descImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 	depthImages[1].descImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+	depthImages[0].createSampler(*context.device);
+	depthImages[1].createSampler(*context.device);
+	*/
+	GbufferSet gbufferSet{ context, faust::WIDTH, faust::HEIGHT };
 
 	Image gbufferMotionImage{ context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR16G16Sfloat, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal };
 
@@ -258,14 +266,14 @@ int main() {
 		Image { context, { faust::WIDTH, faust::HEIGHT }, vk::Format::eR32Uint, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eColorAttachmentOptimal }
 	};
 
-	depthImages[0].createSampler(*context.device);
-	depthImages[1].createSampler(*context.device);
 
 	std::array<Image, 2> filterOutputImages = { Image { context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
 		Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
 
-	std::array<Image, 2> atrousFilterImages = { Image { context, {faust::WIDTH, faust::HEIGHT},vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
+	std::array<Image, 2> atrousFilterImages = { Image { context, {faust::WIDTH, faust::HEIGHT},vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
 		Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral } };
+
+	atrousFilterImages[0].createSampler(*context.device);
 	atrousFilterImages[1].createSampler(*context.device);
 
 	std::array<Image, 2> momentImages = { Image { context, {faust::WIDTH, faust::HEIGHT},  vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral },
@@ -275,7 +283,7 @@ int main() {
 
 	Image finalOutputImage = Image{ context, {faust::WIDTH, faust::HEIGHT}, vk::Format::eR32G32B32A32Sfloat, vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,  vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eGeneral };
 
-	std::vector<vk::ImageView> attachments = { *normalImages[0].view, *gbufferMotionImage.view, *meshIdImages[0].view, *depthImages[0].view };
+	std::vector<vk::ImageView> attachments = { *gbufferSet.normalImages[0].view, *gbufferMotionImage.view, *meshIdImages[0].view, *gbufferSet.depthImages[0].view };
 
 	RasterPipeline gbufferPipeline;
 	gbufferPipeline.create(context, attachments, cameraBuffer);
@@ -284,10 +292,11 @@ int main() {
 	vk::Framebuffer gbufferFramebuffer = gbufferPipeline.framebuffer;
 
 	FullscreenPresentPipeline presentPipeline;
-	presentPipeline.create(context, swapchainImageViews);
-	presentPipeline.updateDescriptorSet(*context.device, atrousFilterImages[1]);
-	vk::RenderPass presentRenderPass = gbufferPipeline.renderPass;
-	vk::Framebuffer presentFramebuffer = gbufferPipeline.framebuffer;
+	presentPipeline.create(context, swapchainImageViews, 3);
+	presentPipeline.updateDescriptorSet(*context.device, atrousFilterImages[1], 0);
+	presentPipeline.updateDescriptorSet(*context.device, atrousFilterImages[0], 1);
+	presentPipeline.updateDescriptorSet(*context.device, rtOutputImage, 2);
+	vk::RenderPass presentRenderPass = presentPipeline.renderPass;
 
 	const std::string temporalShaderFilename = "C:\\Users\\evaka\\Documents\\Visual Studio 2022\\Projects\\Faust\\Faust\\shaders\\filter.comp.spv";
 
@@ -303,14 +312,19 @@ int main() {
 	float factor = 1.0f;
 	int totalFrames = 0;
 
+	FaustGui gui{ context };
+	gui.initGui(context.window, presentRenderPass);
+
 	while (!glfwWindowShouldClose(context.window)) {
 		glfwPollEvents();
+		gui.startFrame();
 
-		Image& currentNormalWrite = (totalFrames % 2 == 0) ? normalImages[0] : normalImages[1];
-		Image& currentDepthWrite = (totalFrames % 2 == 0) ? depthImages[0] : depthImages[1];
+		Image& currentNormalWrite = gbufferSet.currentNormal(totalFrames);
+		Image& currentDepthWrite = gbufferSet.currentDepth(totalFrames);
+		Image& prevNormalImage = gbufferSet.previousNormal(totalFrames);
+		Image& prevDepthImage = gbufferSet.previousDepth(totalFrames);
+
 		Image& currentMeshIdWrite = (totalFrames % 2 == 0) ? meshIdImages[0] : meshIdImages[1];
-		Image& prevNormalImage = (totalFrames % 2 == 0) ? normalImages[1] : normalImages[0];
-		Image& prevDepthImage = (totalFrames % 2 == 0) ? depthImages[1] : depthImages[0];
 		Image& prevMeshIdImage = (totalFrames % 2 == 0) ? meshIdImages[1] : meshIdImages[0];
 
 		Image& currentFilteredImage = (totalFrames % 2 == 0) ? filterOutputImages[0] : filterOutputImages[1];
@@ -354,10 +368,10 @@ int main() {
 		cameraubo.prevProj = camera.getProjection();
 		cameraubo.prevView = camera.getView();
 
-		if (totalFrames % 5 == 0) {
-			camera.translate(glm::vec3{ 0.f, factor * 0.1f, 0.f });
-			frame = 0;
-		}
+		//if (totalFrames % 5 == 0) {
+		//camera.translate(glm::vec3{ 0.f, factor * 0.1f, 0.f });
+		//frame = 0;
+		//}
 
 		cameraubo.proj = camera.getProjection();
 		cameraubo.view = camera.getView();
@@ -442,23 +456,40 @@ int main() {
 		Image::setImageLayout(commandBuffer, *atrousFilterImages[0].image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral);
 
 		// -- WAVELET TRANSFORM --
-		for (int iteration = 1; iteration <= 5; iteration++) {
-			int descSetIndex = (iteration % 2 == 1) ? 0 : 1;
-			int stepWidth = 1 << (iteration - 1);
-			commandBuffer.pushConstants(spatialPipeline.layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(int), &stepWidth);
-			commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, spatialPipeline.pipeline);
-			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, spatialPipeline.layout, 0, *(spatialPipeline.descriptorSets[descSetIndex]), {});
-			commandBuffer.dispatch((faust::WIDTH + 7) / 8, (faust::HEIGHT + 7) / 8, 1);
-			if (iteration == 1) {
-				vk::Image colorHistSrc = *atrousFilterImages[0].image;
-				vk::Image colorHistDest = *currentFilteredImage.image;
-				Image::setImageLayout(commandBuffer, colorHistSrc, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
-				Image::setImageLayout(commandBuffer, colorHistDest, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferDstOptimal);
-				Image::copyImage(commandBuffer, colorHistSrc, colorHistDest);
-				Image::setImageLayout(commandBuffer, colorHistSrc, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral);
-				Image::setImageLayout(commandBuffer, colorHistDest, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral);
+		if (!gui.userParams.temporalOnly) {
+			for (int iteration = 1; iteration <= gui.userParams.waveletIterations; iteration++) {
+				int descSetIndex = (iteration % 2 == 1) ? 0 : 1;
+				int stepWidth = 1 << (iteration - 1);
+				commandBuffer.pushConstants(spatialPipeline.layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(int), &stepWidth);
+				commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, spatialPipeline.pipeline);
+				commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, spatialPipeline.layout, 0, *(spatialPipeline.descriptorSets[descSetIndex]), {});
+				commandBuffer.dispatch((faust::WIDTH + 7) / 8, (faust::HEIGHT + 7) / 8, 1);
+				if (iteration == 1) {
+					vk::Image colorHistSrc = *atrousFilterImages[0].image;
+					vk::Image colorHistDest = *currentFilteredImage.image;
+					Image::setImageLayout(commandBuffer, colorHistSrc, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
+					Image::setImageLayout(commandBuffer, colorHistDest, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferDstOptimal);
+					Image::copyImage(commandBuffer, colorHistSrc, colorHistDest);
+					Image::setImageLayout(commandBuffer, colorHistSrc, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral);
+					Image::setImageLayout(commandBuffer, colorHistDest, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral);
 
+				}
 			}
+		}
+
+		FilterOptions presentFilterIdx = FilterOptions::OddWavelet;
+		if (!gui.userParams.useSVGF) {
+			presentFilterIdx = FilterOptions::NoSVGF;
+		}
+		else if (gui.userParams.temporalOnly) {
+			presentFilterIdx = FilterOptions::EvenWavelet;
+		}
+		else if (gui.userParams.waveletIterations % 2 == 0)
+		{
+			presentFilterIdx = FilterOptions::EvenWavelet;
+		}
+		else {
+			presentFilterIdx = FilterOptions::OddWavelet;
 		}
 
 		vk::RenderPassBeginInfo presentRenderPassBeginInfo;
@@ -471,8 +502,9 @@ int main() {
 
 		commandBuffer.beginRenderPass(presentRenderPassBeginInfo, vk::SubpassContents::eInline);
 		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, presentPipeline.pipeline);
-		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, presentPipeline.pipelineLayout, 0, *(presentPipeline.descriptorSet), nullptr);
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, presentPipeline.pipelineLayout, 0, *(presentPipeline.descriptorSets[static_cast<int>(presentFilterIdx)]), nullptr);
 		commandBuffer.draw(3, 1, 0, 0);
+		gui.render(commandBuffer);
 		commandBuffer.endRenderPass();
 
 		// Prepare filterOutputImage for copy to swapchain

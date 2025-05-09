@@ -45,35 +45,64 @@ vec3 sampleDirection(float rand1, float rand2, vec3 normal)
     return dir.x * tangent + dir.y * bitangent + dir.z * normal;
 }
 
+float schlick(float cosTheta, float eta)
+{
+    float r0 = (1.0 - eta) / (1.0 + eta);
+    r0 = r0 * r0;
+    return r0 + (1.0 - r0) * pow(1.0 - cosTheta, 5.0);
+}
+
+// Integer hash
+uint hash(uint x) {
+    x = ((x >> 16u) ^ x) * 0x45d9f3bu;
+    x = ((x >> 16u) ^ x) * 0x45d9f3bu;
+    x =  (x >> 16u) ^ x;
+    return x;
+}
+
+float random(uint seed) {
+    return float(hash(seed)) / float(0xffffffffu);
+}
+
+
 void main()
 {
     int maxSamples = 32;
     vec3 color = vec3(0.0);
     for(uint sampleNum = 0; sampleNum < maxSamples; sampleNum++){
         // Calc seed
-        uvec2 s = pcg2d(ivec2(gl_LaunchIDEXT.xy) * (sampleNum + maxSamples * frame + 1));
-        uint seed = s.x + s.y;
+        //uvec2 s = pcg2d(ivec2(gl_LaunchIDEXT.xy) * (sampleNum + maxSamples * frame + 1));
+        //uint seed = s.x + s.y;
+        uint base = (frame * maxSamples + sampleNum); 
+        uint seed = base ^ (gl_LaunchIDEXT.x * 1973u + gl_LaunchIDEXT.y * 9277u);
+        uint seed2 = seed+1;
+        uint seed3 = seed+2;
+        uint seed4 = seed+3;
 
-        // Calc ray
-        const vec2 screenPos = vec2(gl_LaunchIDEXT.xy) + vec2(rand(seed), rand(seed));
-        const vec2 inUV = screenPos / vec2(gl_LaunchSizeEXT.xy);
-        vec2 d = inUV * 2.0 - 1.0;
+		float r1 = random(seed);
+		float r2 = random(seed2);
+		vec2 screenPos = vec2(gl_LaunchIDEXT.xy) + vec2(r1, r2);
+		vec2 uv = screenPos / vec2(gl_LaunchSizeEXT.xy);     // [0, 1]
+		vec2 ndc = uv * 2.0 - 1.0;                            // [-1, 1]
 
-        vec2 uv = (vec2(gl_LaunchIDEXT.xy) + 0.5) / vec2(gl_LaunchSizeEXT.xy);
-		vec2 ndc = uv * 2.0 - 1.0;
-		vec4 clip = vec4(ndc, -1.0, 1.0); // homogeneous clip space
+		// Project into clip space (z = -1, w = 1 for a ray on near plane)
+		vec4 clip = vec4(ndc, -1.0, 1.0);
 
+		// Inverse project to world space
 		mat4 invViewProj = inverse(cam.proj * cam.view);
 		vec4 world = invViewProj * clip;
 		world /= world.w;
 
+		// Camera origin = eye position in world space
 		vec3 origin = inverse(cam.view)[3].xyz;
+
+		// Final ray direction
 		vec3 direction = normalize(world.xyz - origin);
 
         vec3 weight = vec3(1.0);
         payload.done = false;
 
-        for(uint depth = 0; depth < 8; depth++){
+        for(uint depth = 0; depth < 16; depth++){
             traceRayEXT(
                 topLevelAS,
                 gl_RayFlagsOpaqueEXT,
@@ -89,10 +118,53 @@ void main()
             );
             color += weight * payload.emission;
             origin.xyz = payload.position;
-            direction.xyz = sampleDirection(rand(seed), rand(seed), payload.normal);
-            float pdf = 1.0 / (2.0 * M_PI);
-            weight *= payload.brdf * dot(direction.xyz, payload.normal) / pdf;
-            if(payload.done){
+
+            if (payload.materialType == 0) {
+				// Diffuse
+				direction = sampleDirection(rand(seed3), rand(seed4), payload.normal);
+				float pdf = 1.0 / (2.0 * M_PI);
+				weight *= payload.brdf * max(dot(direction, payload.normal), 0.0) / pdf;
+
+			} else if (payload.materialType == 1) {
+				// Mirror (perfect reflection)
+				direction = reflect(direction, payload.normal);
+				weight *= payload.specular;
+
+			} else if (payload.materialType == 2) {
+				// Dielectric (glass)
+				vec3 N = payload.normal;
+				float eta = payload.ior;
+
+				// Flip normal if exiting
+				float cosTheta = dot(-direction, N);
+				bool entering = cosTheta > 0.0;
+				if (!entering) {
+					N = -N;
+					eta = 1.0 / eta;
+					cosTheta = dot(-direction, N);
+				}
+
+				float fresnel = schlick(cosTheta, eta);
+				if (rand(seed4) < fresnel) {
+					// Reflect
+					direction = reflect(direction, N);
+				} else {
+					// Refract
+					vec3 refracted = refract(direction, N, 1.0 / eta);
+					if (length(refracted) > 0.0) {
+						direction = refracted;
+					} else {
+						// Total internal reflection fallback
+						direction = reflect(direction, N);
+					}
+				}
+
+				weight *= vec3(1.0); // Glass is uncolored in this model
+			}
+
+
+
+	            if(payload.done){
                 break;
             }
         }

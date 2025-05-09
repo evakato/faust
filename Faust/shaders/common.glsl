@@ -1,12 +1,21 @@
-
-struct HitPayload
-{
+struct HitPayload {
     vec3 position;
+    float roughness;
+
     vec3 normal;
+    float ior;
+
     vec3 emission;
+    int materialType;
+
     vec3 brdf;
-    vec2 motion;
+    float padding1; // align next vec3
+
+    vec3 specular;
+    float padding2;
+
     bool done;
+    int padding3[3]; // pad to 16-byte alignment (bool is 1 byte)
 };
 
 const highp float M_PI = 3.14159265358979323846;

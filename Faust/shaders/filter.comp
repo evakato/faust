@@ -96,8 +96,48 @@ vec4 bilinearTap(vec2 coord, ivec2 imageSize, vec3 currNormal, float currDepth, 
     if (totalWeight > 0.0) {
         return accumColor / totalWeight;
     } else {
-        return vec4(0.0);
+        return vec4(-1.0);
     }
+}
+
+float normalWeight(vec3 n1, vec3 n2) {
+    return pow(max(dot(n1, n2), 0.0), 32.0); // adjust exponent as needed
+}
+
+float depthWeight(float d1, float d2, float sigma) {
+    float diff = abs(d1 - d2);
+    return exp(-diff * diff / (2.0 * sigma * sigma));
+}
+
+
+float get7x7FilterVariance(ivec2 coord, ivec2 imageSize) {
+	vec3 centerNormal = imageLoad(currNormals, coord).xyz;
+	float centerDepth = texelFetch(currDepths, coord, 0).r;
+	float centerLum = dot(imageLoad(raytracedSample, coord).rgb, vec3(0.2126, 0.7152, 0.0722));
+
+	float weightSum = 0.0;
+	float lumSum = 0.0;
+	float lumSqSum = 0.0;
+
+	for (int dy = -3; dy <= 3; ++dy) {
+		for (int dx = -3; dx <= 3; ++dx) {
+			ivec2 offset = coord + ivec2(dx, dy);
+			if (any(lessThan(offset, ivec2(0))) || any(greaterThanEqual(offset, imageSize))) continue;
+
+			vec3 n = imageLoad(currNormals, offset).xyz;
+			float d = texelFetch(currDepths, offset, 0).r;
+			float lum = dot(imageLoad(raytracedSample, offset).rgb, vec3(0.2126, 0.7152, 0.0722));
+
+			float w = normalWeight(centerNormal, n) * depthWeight(centerDepth, d, 0.01); // depth sigma = 0.01
+			weightSum += w;
+			lumSum += lum * w;
+			lumSqSum += (lum * lum) * w;
+		}
+	}
+
+	float mean = lumSum / weightSum;
+	float meanSq = lumSqSum / weightSum;
+	return max(meanSq - mean * mean, 0.0);
 }
 
 void main() {
@@ -105,6 +145,8 @@ void main() {
     ivec2 imageSize = imageSize(raytracedSample);
     vec4 currColor = imageLoad(raytracedSample, coord);
     float currLuminance = dot(currColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    float framesSinceDisocclusion = currColor.a;
+	float newAge = 0.0;
 
     if (frameIndex == 0) 
     {
@@ -112,7 +154,7 @@ void main() {
         float moment2 = currLuminance * currLuminance;
         float variance = max(moment2 - moment1 * moment1, 0.0);
 
-		imageStore(updatedColorHistory, coord, currColor);
+		imageStore(updatedColorHistory, coord, vec4(currColor.xyz, 0.0));
 		imageStore(updatedMoments, coord, vec4(moment1, moment2, 0.0, 0.0));
 		imageStore(varianceImage, coord, vec4(variance, 0.0, 0.0, 0.0));
     } else {
@@ -127,8 +169,19 @@ void main() {
         vec2 prevLuminance = momentSample(prevCoordF, imageSize, currNormal, currDepth, currMeshId);
 
 		float alpha = 0.8;
-		vec4 integratedColor = mix(currColor, prevColor, alpha);
-		if (length(prevColor) == 0.0) integratedColor = currColor;
+        float prevAge = prevColor.a;
+		bool valid = (prevAge >= 0.0);
+
+		vec4 integratedColor;
+
+		if (valid) {
+			integratedColor = mix(currColor, prevColor, alpha);
+			newAge = min(prevAge + 1.0, 1000.0); // clamp if needed
+		} else {
+			integratedColor = vec4(currColor.rgb, 0.0);
+		}
+
+		integratedColor.a = newAge;
 
         float moment1 = mix(currLuminance, prevLuminance.r, alpha);
         float moment2 = mix(currLuminance * currLuminance, prevLuminance.g, alpha);
@@ -142,5 +195,9 @@ void main() {
 		imageStore(updatedColorHistory, coord, integratedColor);
 		imageStore(updatedMoments, coord, vec4(moment1, moment2, 0.0, 0.0));
 		imageStore(varianceImage, coord, vec4(variance, 0.0, 0.0, 0.0));
+    }
+    if (newAge < 4.0) {
+        float newVariance = get7x7FilterVariance(coord, imageSize);
+		imageStore(varianceImage, coord, vec4(newVariance, 0.0, 0.0, 0.0));
     }
 }

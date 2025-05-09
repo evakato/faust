@@ -45,9 +45,20 @@ struct Vertex {
 	}
 };
 
+enum class Material {
+	Diffuse = 0,
+	Mirror = 1,
+	Dielectric = 2
+};
+
+
 struct Face {
-	float diffuse[3];
-	float emission[3];
+	glm::vec3 diffuse;
+	glm::vec3 emission;
+	glm::vec3 specular;
+	float roughness;
+	float ior;
+	float type;
 };
 
 namespace faust {
